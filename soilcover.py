@@ -1,9 +1,6 @@
-"""
-Módulos do SoilCarbon Planner
-"""
-"""
-Funções utilitárias compartilhadas entre os módulos
-"""
+"Módulos do SoilCarbon Planner"
+
+"""Funções utilitárias compartilhadas entre os módulos"""
 import streamlit as st
 import pandas as pd
 import numpy as np
