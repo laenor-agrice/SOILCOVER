@@ -1,10 +1,72 @@
-"Módulos do SoilCarbon Planner"
-
-"""Funções utilitárias compartilhadas entre os módulos"""
+"""
+Módulos do SoilCarbon Planner
+"""
+"""
+SoilCarbon Planner
+Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do Solo
+"""
 import streamlit as st
 import pandas as pd
 import numpy as np
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime
+import requests
+
+# ============================================================================
+# CONFIGURAÇÃO DA PÁGINA
+# ============================================================================
+st.set_page_config(
+    page_title="SoilCarbon Planner",
+    page_icon="🌱",
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ============================================================================
+# ESTILO CSS PERSONALIZADO
+# ============================================================================
+st.markdown("""
+<style>
+    .main-header {
+        background: linear-gradient(90deg, #1b5e20 0%, #388e3c 50%, #4caf50 100%);
+        padding: 20px;
+        border-radius: 10px;
+        color: white;
+        text-align: center;
+        margin-bottom: 20px;
+    }
+    .main-header h1 {
+        color: white;
+        margin: 0;
+        font-size: 2.5rem;
+    }
+    .main-header p {
+        color: #c8e6c9;
+        margin: 5px 0 0 0;
+        font-size: 1.1rem;
+    }
+    .stButton > button {
+        background-color: #2e7d32;
+        color: white;
+        font-weight: bold;
+    }
+    .stButton > button:hover {
+        background-color: #1b5e20;
+        color: white;
+    }
+    .stSelectbox > div > div {
+        background-color: #f5f5f5;
+    }
+    .stNumberInput > div > div {
+        background-color: #f5f5f5;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# ============================================================================
+# FUNÇÕES UTILITÁRIAS
+# ============================================================================
 
 def init_session_state():
     """Inicializa todas as variáveis do session_state"""
@@ -70,12 +132,14 @@ def init_session_state():
     if "aba_atual" not in st.session_state:
         st.session_state["aba_atual"] = "Cadastro"
 
+
 def formatar_numero(valor, casas=2):
     """Formata um número para exibição"""
     try:
         return f"{float(valor):.{casas}f}"
     except:
         return str(valor)
+
 
 def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     """Calcula a qualidade do manejo baseado nos indicadores"""
@@ -130,6 +194,7 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
         return "Baixa"
     else:
         return "Muito baixa"
+
 
 def recomendar_coberturas(objetivo, bioma):
     """Recomenda coberturas vegetais baseado no objetivo e bioma"""
@@ -189,6 +254,7 @@ def recomendar_coberturas(objetivo, bioma):
         return recomendacoes.get(objetivo, {}).get("Cerrado", ["Crotalária", "Milheto", "Braquiária"])
     
     return recomendacoes.get(objetivo, {}).get(bioma, ["Crotalária", "Milheto", "Braquiária"])
+
 
 def recomendar_consorcios(cultura_principal):
     """Recomenda consórcios baseado na cultura principal"""
@@ -261,6 +327,7 @@ def recomendar_consorcios(cultura_principal):
         }
     ])
 
+
 def simular_decomposicao(cobertura, massa_seca):
     """Simula a decomposição da cobertura vegetal ao longo do tempo"""
     
@@ -308,19 +375,86 @@ def simular_decomposicao(cobertura, massa_seca):
         mo_adicionada.append(mo)
     
     return pd.DataFrame(dados), carbono_residual, mo_adicionada
-"""
-Módulo de Cadastro do Usuário e Propriedade
-"""
-import streamlit as st
-from modules.utils import init_session_state
 
-def render():
+
+def identificar_bioma(lat, lon):
+    """Identifica o bioma baseado nas coordenadas"""
+    
+    # Dicionário de biomas brasileiros (aproximado)
+    biomas_por_estado = {
+        "AC": "Amazônia", "AL": "Mata Atlântica", "AP": "Amazônia",
+        "AM": "Amazônia", "BA": "Mata Atlântica/Caatinga", "CE": "Caatinga",
+        "DF": "Cerrado", "ES": "Mata Atlântica", "GO": "Cerrado",
+        "MA": "Amazônia/Cerrado", "MT": "Cerrado/Amazônia/Pantanal",
+        "MS": "Cerrado/Pantanal", "MG": "Mata Atlântica/Cerrado",
+        "PA": "Amazônia", "PB": "Caatinga/Mata Atlântica",
+        "PR": "Mata Atlântica", "PE": "Caatinga/Mata Atlântica",
+        "PI": "Caatinga/Cerrado", "RJ": "Mata Atlântica",
+        "RN": "Caatinga/Mata Atlântica", "RS": "Pampa/Mata Atlântica",
+        "RO": "Amazônia", "RR": "Amazônia", "SC": "Mata Atlântica",
+        "SP": "Mata Atlântica/Cerrado", "SE": "Mata Atlântica",
+        "TO": "Cerrado/Amazônia",
+    }
+    
+    # Tenta geocodificar reversamente para obter estado
+    try:
+        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
+        headers = {"User-Agent": "SoilCarbonPlanner/1.0"}
+        
+        response = requests.get(url, headers=headers, timeout=10)
+        
+        if response.status_code == 200:
+            data = response.json()
+            address = data.get("address", {})
+            estado = address.get("state", "")
+            
+            # Extrai UF do estado
+            uf = ""
+            estados_br = {
+                "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
+                "BA": "Bahia", "CE": "Ceará", "DF": "Distrito Federal", "ES": "Espírito Santo",
+                "GO": "Goiás", "MA": "Maranhão", "MT": "Mato Grosso", "MS": "Mato Grosso do Sul",
+                "MG": "Minas Gerais", "PA": "Pará", "PB": "Paraíba", "PR": "Paraná",
+                "PE": "Pernambuco", "PI": "Piauí", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte",
+                "RS": "Rio Grande do Sul", "RO": "Rondônia", "RR": "Roraima", "SC": "Santa Catarina",
+                "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins"
+            }
+            for sigla, nome in estados_br.items():
+                if nome in estado or nome in estado:
+                    uf = sigla
+                    break
+            
+            if uf and uf in biomas_por_estado:
+                bioma = biomas_por_estado[uf]
+                return bioma, "Aw"
+    except:
+        pass
+    
+    # Fallback baseado na coordenada
+    if lat < -15 and lat > -33 and lon < -50 and lon > -60:
+        return "Pampa", "Cfa"
+    elif lat < -5 and lat > -15:
+        return "Cerrado", "Aw"
+    elif lat < -5 and lon < -60:
+        return "Amazônia", "Af"
+    elif lat > -5 and lon > -45:
+        return "Mata Atlântica", "Af"
+    elif lat > -5 and lon < -45:
+        return "Amazônia", "Af"
+    else:
+        return "Cerrado", "Aw"
+
+
+# ============================================================================
+# FUNÇÕES DE RENDERIZAÇÃO DE CADA ABA
+# ============================================================================
+
+def render_cadastro():
     """Renderiza a página de cadastro"""
     
     st.title("📋 Cadastro do Usuário e Propriedade")
     st.markdown("---")
     
-    # Inicializa session_state se necessário
     init_session_state()
     
     col1, col2 = st.columns(2)
@@ -402,9 +536,7 @@ def render():
     
     st.markdown("---")
     
-    # Botão Salvar
     if st.button("💾 SALVAR CADASTRO", use_container_width=True, type="primary"):
-        # Atualiza o session_state
         st.session_state["cadastro"]["nome"] = nome
         st.session_state["cadastro"]["email"] = email
         st.session_state["cadastro"]["telefone"] = telefone
@@ -418,16 +550,11 @@ def render():
         st.success("✅ Cadastro salvo com sucesso!")
         st.balloons()
     
-    # Exibe dados salvos
     with st.expander("📊 Dados Salvos", expanded=False):
         st.json(st.session_state["cadastro"])
-"""
-Módulo de Diagnóstico do Sistema de Manejo
-"""
-import streamlit as st
-from modules.utils import init_session_state, calcular_qualidade_manejo
 
-def render():
+
+def render_manejo():
     """Renderiza a página de manejo"""
     
     st.title("🔬 Diagnóstico do Sistema de Manejo")
@@ -435,7 +562,6 @@ def render():
     
     init_session_state()
     
-    # Tipo de manejo
     st.subheader("🌾 Tipo de Manejo Atual")
     
     tipos_manejo = [
@@ -455,7 +581,6 @@ def render():
     
     st.markdown("---")
     
-    # Histórico
     st.subheader("📅 Histórico da Área")
     
     anos_pd = st.number_input(
@@ -468,7 +593,6 @@ def render():
     
     st.markdown("---")
     
-    # Rotação de culturas
     st.subheader("🔄 Rotação de Culturas")
     
     culturas_opcoes = [
@@ -485,7 +609,6 @@ def render():
     
     st.markdown("---")
     
-    # Indicadores
     st.subheader("📊 Indicadores do Solo")
     
     col1, col2 = st.columns(2)
@@ -532,7 +655,6 @@ def render():
     
     st.markdown("---")
     
-    # Atualiza session_state
     st.session_state["manejo"]["tipo"] = tipo
     st.session_state["manejo"]["anos"] = anos_pd
     st.session_state["manejo"]["culturas"] = culturas_selecionadas
@@ -541,7 +663,6 @@ def render():
     st.session_state["manejo"]["ph"] = ph
     st.session_state["manejo"]["ctc"] = ctc
     
-    # Calcula e exibe qualidade
     st.subheader("⭐ Qualidade do Manejo")
     
     qualidade = calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd)
@@ -568,18 +689,11 @@ def render():
     </div>
     """, unsafe_allow_html=True)
     
-    # Botão para salvar
     if st.button("📊 Salvar Diagnóstico", use_container_width=True, type="primary"):
         st.success("✅ Diagnóstico salvo com sucesso!")
-"""
-Módulo de Planejamento de Coberturas Vegetais
-"""
-import streamlit as st
-import pandas as pd
-from modules.utils import init_session_state, recomendar_coberturas
-from modules.mapas import identificar_bioma
 
-def render():
+
+def render_cobertura():
     """Renderiza a página de coberturas vegetais"""
     
     st.title("🌿 Planejamento de Coberturas Vegetais")
@@ -587,7 +701,6 @@ def render():
     
     init_session_state()
     
-    # Localização
     st.subheader("📍 Localização e Bioma")
     
     lat = st.session_state["cadastro"]["latitude"]
@@ -601,7 +714,6 @@ def render():
     with col2:
         st.metric("Longitude", f"{lon:.4f}")
     
-    # Identificar bioma
     if st.button("🔍 Identificar Bioma e Clima", use_container_width=True):
         with st.spinner("Identificando bioma..."):
             bioma, clima = identificar_bioma(lat, lon)
@@ -617,7 +729,6 @@ def render():
     
     st.markdown("---")
     
-    # Objetivo da cobertura
     st.subheader("🎯 Objetivo da Cobertura Vegetal")
     
     objetivos = [
@@ -641,7 +752,6 @@ def render():
     
     st.markdown("---")
     
-    # Recomendações
     st.subheader("📋 Recomendações de Coberturas")
     
     bioma = st.session_state["cobertura"]["bioma"]
@@ -667,10 +777,8 @@ def render():
                 </div>
                 """, unsafe_allow_html=True)
         
-        # Salva recomendações
         st.session_state["cobertura"]["recomendacoes"] = recomendacoes
         
-        # Informações adicionais
         with st.expander("📖 Mais informações sobre as coberturas recomendadas"):
             info_coberturas = {
                 "Crotalária": "Fixação de N, controle de nematoides, decomposição rápida",
@@ -690,13 +798,9 @@ def render():
                     st.markdown(f"**{cobertura}:** {info_coberturas[cobertura]}")
     else:
         st.warning("⚠️ Clique em 'Identificar Bioma' para obter recomendações personalizadas")
-"""
-Módulo de Consórcios Inteligentes
-"""
-import streamlit as st
-from modules.utils import init_session_state, recomendar_consorcios
 
-def render():
+
+def render_consorcio():
     """Renderiza a página de consórcios inteligentes"""
     
     st.title("🌾 Consórcios Inteligentes")
@@ -720,7 +824,6 @@ def render():
     
     st.markdown("---")
     
-    # Recomendações
     st.subheader("📋 Consórcios Recomendados")
     
     consorcios = recomendar_consorcios(cultura_principal)
@@ -741,13 +844,10 @@ def render():
                     value=consorcio["impacto"],
                     delta="Perda estimada" if "-" in consorcio["impacto"] else "Ganho estimado"
                 )
-                
-                # Explica que é uma faixa
                 st.caption("Valor estimado: 4 ± 3% depende do clima, fertilidade e manejo")
     
     st.markdown("---")
     
-    # Informações adicionais
     with st.expander("💡 Dicas para consórcios bem-sucedidos"):
         st.markdown("""
         **1. Escolha da espécie de cobertura:**
@@ -767,16 +867,9 @@ def render():
         - Ajustar adubação para suprir ambas as culturas
         - Fósforo e potássio são especialmente importantes
         """)
-"""
-Módulo de Simulador de Decomposição
-"""
-import streamlit as st
-import pandas as pd
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
-from modules.utils import init_session_state, simular_decomposicao
 
-def render():
+
+def render_decomposicao():
     """Renderiza a página de simulador de decomposição"""
     
     st.title("📊 Simulador de Decomposição")
@@ -828,24 +921,18 @@ def render():
     
     st.markdown("---")
     
-    # Botão para simular
     if st.button("📈 SIMULAR DECOMPOSIÇÃO", use_container_width=True, type="primary"):
         with st.spinner("Simulando decomposição..."):
             df, carbono, mo = simular_decomposicao(cobertura, massa_seca)
-            
             st.session_state["decomposicao"]["dados_simulacao"] = df
-            
             st.success("✅ Simulação concluída!")
     
-    # Exibe resultados se existirem
     if st.session_state["decomposicao"]["dados_simulacao"] is not None:
         df = st.session_state["decomposicao"]["dados_simulacao"]
         
-        # Tabela de dados
         st.subheader("📋 Dados da Simulação")
         st.dataframe(df, use_container_width=True, hide_index=True)
         
-        # Gráficos
         st.subheader("📈 Evolução da Decomposição")
         
         fig = make_subplots(
@@ -859,7 +946,6 @@ def render():
             )
         )
         
-        # Decomposição
         fig.add_trace(
             go.Scatter(
                 x=df["Dias"],
@@ -872,7 +958,6 @@ def render():
             col=1
         )
         
-        # Massa Restante
         fig.add_trace(
             go.Scatter(
                 x=df["Dias"],
@@ -885,7 +970,6 @@ def render():
             col=2
         )
         
-        # Carbono Residual
         fig.add_trace(
             go.Scatter(
                 x=df["Dias"],
@@ -898,7 +982,6 @@ def render():
             col=1
         )
         
-        # Matéria Orgânica
         fig.add_trace(
             go.Scatter(
                 x=df["Dias"],
@@ -924,7 +1007,6 @@ def render():
         
         st.plotly_chart(fig, use_container_width=True)
         
-        # Resumo
         st.subheader("📊 Resumo da Simulação")
         
         col1, col2, col3 = st.columns(3)
@@ -946,15 +1028,9 @@ def render():
                 "MO adicionada em 180 dias",
                 f"{df[df['Dias'] == 180]['Matéria Orgânica (t/ha)'].iloc[0]:.2f} t/ha"
             )
-"""
-Módulo de Relatório
-"""
-import streamlit as st
-import pandas as pd
-from datetime import datetime
-from modules.utils import init_session_state
 
-def render():
+
+def render_relatorio():
     """Renderiza a página de relatório"""
     
     st.title("📄 Relatório Técnico")
@@ -969,7 +1045,6 @@ def render():
     if st.session_state["relatorio"]["gerado"]:
         st.markdown("---")
         
-        # Cabeçalho
         st.markdown("""
         <div style='
             background-color: #1f4b3a;
@@ -984,7 +1059,6 @@ def render():
         </div>
         """.format(datetime.now().strftime("%d/%m/%Y %H:%M")), unsafe_allow_html=True)
         
-        # Resumo da propriedade
         with st.expander("🏢 Resumo da Propriedade", expanded=True):
             cad = st.session_state["cadastro"]
             col1, col2 = st.columns(2)
@@ -999,7 +1073,6 @@ def render():
                 st.markdown(f"**Latitude:** {cad['latitude']:.4f}")
                 st.markdown(f"**Longitude:** {cad['longitude']:.4f}")
         
-        # Manejo atual
         with st.expander("🔬 Diagnóstico de Manejo", expanded=True):
             man = st.session_state["manejo"]
             
@@ -1016,7 +1089,6 @@ def render():
                 st.markdown(f"**pH:** {man['ph']:.1f}")
                 st.markdown(f"**CTC:** {man['ctc']:.1f} meq/100g")
         
-        # Coberturas recomendadas
         with st.expander("🌿 Coberturas Recomendadas", expanded=True):
             cov = st.session_state["cobertura"]
             
@@ -1030,7 +1102,6 @@ def render():
                 for rec in cov['recomendacoes']:
                     st.markdown(f"✅ {rec}")
         
-        # Consórcios recomendados
         with st.expander("🌾 Consórcios Recomendados", expanded=True):
             con = st.session_state["consorcio"]
             
@@ -1042,7 +1113,6 @@ def render():
                     st.markdown(f"   Benefícios: {', '.join(consorcio['beneficios'])}")
                     st.markdown(f"   Impacto: {consorcio['impacto']}")
         
-        # Simulação de decomposição
         with st.expander("📊 Simulação de Decomposição", expanded=True):
             dec = st.session_state["decomposicao"]
             
@@ -1056,7 +1126,6 @@ def render():
             else:
                 st.warning("Nenhuma simulação realizada")
         
-        # Botão para exportar
         st.markdown("---")
         
         col1, col2, col3 = st.columns(3)
@@ -1074,175 +1143,11 @@ def render():
                 st.info("Funcionalidade em desenvolvimento")
     else:
         st.info("📌 Clique em 'GERAR RELATÓRIO' para visualizar o relatório completo")
-"""
-Módulo de Mapas e Geocodificação
-"""
-import streamlit as st
-import requests
-from modules.utils import init_session_state
 
-def identificar_bioma(lat, lon):
-    """
-    Identifica o bioma baseado nas coordenadas usando API do IBGE
-    """
-    
-    # Dicionário de biomas brasileiros (aproximado)
-    # Em produção, usar API oficial do IBGE
-    biomas_por_estado = {
-        "AC": "Amazônia",
-        "AL": "Mata Atlântica",
-        "AP": "Amazônia",
-        "AM": "Amazônia",
-        "BA": "Mata Atlântica/Caatinga",
-        "CE": "Caatinga",
-        "DF": "Cerrado",
-        "ES": "Mata Atlântica",
-        "GO": "Cerrado",
-        "MA": "Amazônia/Cerrado",
-        "MT": "Cerrado/Amazônia/Pantanal",
-        "MS": "Cerrado/Pantanal",
-        "MG": "Mata Atlântica/Cerrado",
-        "PA": "Amazônia",
-        "PB": "Caatinga/Mata Atlântica",
-        "PR": "Mata Atlântica",
-        "PE": "Caatinga/Mata Atlântica",
-        "PI": "Caatinga/Cerrado",
-        "RJ": "Mata Atlântica",
-        "RN": "Caatinga/Mata Atlântica",
-        "RS": "Pampa/Mata Atlântica",
-        "RO": "Amazônia",
-        "RR": "Amazônia",
-        "SC": "Mata Atlântica",
-        "SP": "Mata Atlântica/Cerrado",
-        "SE": "Mata Atlântica",
-        "TO": "Cerrado/Amazônia",
-    }
-    
-    # Tenta geocodificar reversamente para obter estado
-    try:
-        # Usando Nominatim (OpenStreetMap) - gratuito
-        url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
-        headers = {
-            "User-Agent": "SoilCarbonPlanner/1.0"
-        }
-        
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            address = data.get("address", {})
-            estado = address.get("state", "")
-            
-            # Extrai UF do estado
-            uf = ""
-            for sigla, nome in {
-                "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
-                "BA": "Bahia", "CE": "Ceará", "DF": "Distrito Federal", "ES": "Espírito Santo",
-                "GO": "Goiás", "MA": "Maranhão", "MT": "Mato Grosso", "MS": "Mato Grosso do Sul",
-                "MG": "Minas Gerais", "PA": "Pará", "PB": "Paraíba", "PR": "Paraná",
-                "PE": "Pernambuco", "PI": "Piauí", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte",
-                "RS": "Rio Grande do Sul", "RO": "Rondônia", "RR": "Roraima", "SC": "Santa Catarina",
-                "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins"
-            }.items():
-                if nome in estado or nome in estado:
-                    uf = sigla
-                    break
-            
-            if uf and uf in biomas_por_estado:
-                bioma = biomas_por_estado[uf]
-                return bioma, "Aw"  # Clima tropical padrão
-    except:
-        pass
-    
-    # Fallback baseado na coordenada
-    # Regras simplificadas para biomas
-    if lat < -15 and lat > -33 and lon < -50 and lon > -60:
-        return "Pampa", "Cfa"
-    elif lat < -5 and lat > -15:
-        return "Cerrado", "Aw"
-    elif lat < -5 and lon < -60:
-        return "Amazônia", "Af"
-    elif lat > -5 and lon > -45:
-        return "Mata Atlântica", "Af"
-    elif lat > -5 and lon < -45:
-        return "Amazônia", "Af"
-    else:
-        return "Cerrado", "Aw"
 
-def geocode_endereco(endereco):
-    """
-    Converte endereço em coordenadas
-    """
-    try:
-        url = f"https://nominatim.openstreetmap.org/search?q={endereco}&format=json"
-        headers = {"User-Agent": "SoilCarbonPlanner/1.0"}
-        
-        response = requests.get(url, headers=headers, timeout=10)
-        
-        if response.status_code == 200:
-            data = response.json()
-            if data:
-                return float(data[0]["lat"]), float(data[0]["lon"])
-    except:
-        pass
-    
-    return None, None
-"""
-SoilCarbon Planner
-Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do Solo
-"""
-import streamlit as st
-
-# Configuração da página
-st.set_page_config(
-    page_title="SoilCarbon Planner",
-    page_icon="🌱",
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-
-# Importa os módulos
-from modules import cadastro, manejo, cobertura, consorcio, decomposicao, relatorio
-from modules.utils import init_session_state
-
-# Estilo CSS personalizado
-st.markdown("""
-<style>
-    .main-header {
-        background: linear-gradient(90deg, #1b5e20 0%, #388e3c 50%, #4caf50 100%);
-        padding: 20px;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        margin-bottom: 20px;
-    }
-    .main-header h1 {
-        color: white;
-        margin: 0;
-        font-size: 2.5rem;
-    }
-    .main-header p {
-        color: #c8e6c9;
-        margin: 5px 0 0 0;
-        font-size: 1.1rem;
-    }
-    .stButton > button {
-        background-color: #2e7d32;
-        color: white;
-        font-weight: bold;
-    }
-    .stButton > button:hover {
-        background-color: #1b5e20;
-        color: white;
-    }
-    .stSelectbox > div > div {
-        background-color: #f5f5f5;
-    }
-    .stNumberInput > div > div {
-        background-color: #f5f5f5;
-    }
-</style>
-""", unsafe_allow_html=True)
+# ============================================================================
+# MAIN - APLICAÇÃO PRINCIPAL
+# ============================================================================
 
 # Cabeçalho
 st.markdown("""
@@ -1282,60 +1187,24 @@ orgânica do solo.
 
 st.sidebar.markdown("---")
 
-# Mostra dados do usuário na sidebar
 if st.session_state["cadastro"]["nome"]:
     st.sidebar.success(f"👤 {st.session_state['cadastro']['nome']}")
     st.sidebar.caption(f"🏢 {st.session_state['cadastro']['fazenda']}")
 
 # Roteamento das abas
 if aba == "📝 Cadastro":
-    cadastro.render()
+    render_cadastro()
 elif aba == "🔬 Manejo":
-    manejo.render()
+    render_manejo()
 elif aba == "🌿 Coberturas":
-    cobertura.render()
+    render_cobertura()
 elif aba == "🌾 Consórcios":
-    consorcio.render()
+    render_consorcio()
 elif aba == "📊 Decomposição":
-    decomposicao.render()
+    render_decomposicao()
 elif aba == "📄 Relatório":
-    relatorio.render()
+    render_relatorio()
 
 # Rodapé
 st.markdown("---")
 st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia")
-# Python
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# Streamlit
-.streamlit/
-*.streamlit/
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-
-# Arquivos do sistema
-.DS_Store
-Thumbs.db
-
-# Dados
-*.csv
-*.xlsx
-*.xls
-*.db
-*.sqlite
-
-# Logs
-*.log
