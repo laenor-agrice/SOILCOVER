@@ -25,32 +25,143 @@ st.set_page_config(
 # ============================================================================
 st.markdown("""
 <style>
+    /* Cabeçalho principal */
     .main-header {
-        background: linear-gradient(90deg, #1b5e20 0%, #388e3c 50%, #4caf50 100%);
+        background: linear-gradient(135deg, #1b5e20 0%, #2e7d32 50%, #388e3c 100%);
         padding: 20px;
         border-radius: 10px;
         color: white;
         text-align: center;
-        margin-bottom: 20px;
+        margin-bottom: 25px;
     }
     .main-header h1 {
         color: white;
         margin: 0;
         font-size: 2.5rem;
+        font-weight: 600;
     }
     .main-header p {
         color: #c8e6c9;
         margin: 5px 0 0 0;
         font-size: 1.1rem;
     }
+    
+    /* Botões padronizados */
     .stButton > button {
         background-color: #2e7d32;
         color: white;
-        font-weight: bold;
+        font-weight: 600;
+        border-radius: 8px;
+        padding: 0.5rem 1rem;
+        transition: all 0.3s ease;
     }
     .stButton > button:hover {
         background-color: #1b5e20;
         color: white;
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(46, 125, 50, 0.3);
+    }
+    
+    /* Cards de recomendação */
+    .card-recomendacao {
+        background-color: #f8f9fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 12px 0;
+        border-left: 6px solid #2e7d32;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .card-recomendacao.destaque {
+        background-color: #e8f5e9;
+        border-left-color: #1b5e20;
+    }
+    .card-recomendacao h3 {
+        color: #1b5e20;
+        margin-top: 0;
+    }
+    .card-recomendacao p {
+        color: #333333;
+        margin: 6px 0;
+    }
+    
+    /* Cards de dados */
+    .card-dados {
+        background-color: #f5f7fa;
+        padding: 20px;
+        border-radius: 12px;
+        margin: 8px 0;
+        border: 1px solid #e0e4e8;
+    }
+    .card-dados label {
+        font-weight: 600;
+        color: #1b5e20;
+        font-size: 0.9rem;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .card-dados .valor {
+        font-size: 1.1rem;
+        color: #1a1a1a;
+        margin-top: 4px;
+        font-weight: 500;
+    }
+    
+    /* Métricas */
+    .metric-container {
+        background: linear-gradient(135deg, #f8f9fa 0%, #ffffff 100%);
+        padding: 15px;
+        border-radius: 10px;
+        border: 1px solid #e8ecf0;
+        text-align: center;
+    }
+    .metric-container .label {
+        font-size: 0.85rem;
+        color: #666;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+    .metric-container .value {
+        font-size: 1.8rem;
+        font-weight: 700;
+        color: #1b5e20;
+        margin: 5px 0;
+    }
+    
+    /* Mapa */
+    .map-container {
+        border-radius: 12px;
+        overflow: hidden;
+        border: 2px solid #e0e4e8;
+        background-color: #f5f7fa;
+        padding: 20px;
+        text-align: center;
+    }
+    
+    /* Referências */
+    .ref-container {
+        background-color: #f5f7fa;
+        padding: 20px;
+        border-radius: 10px;
+        border-left: 4px solid #2e7d32;
+        margin: 10px 0;
+    }
+    .ref-container h4 {
+        color: #1b5e20;
+        margin-top: 0;
+    }
+    
+    /* Ajustes gerais */
+    .stSelectbox > div > div {
+        background-color: #ffffff;
+        border-radius: 8px;
+    }
+    .stNumberInput > div > div {
+        background-color: #ffffff;
+        border-radius: 8px;
+    }
+    .stDataFrame {
+        border-radius: 8px;
+        overflow: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -68,7 +179,8 @@ BANCO_ESPECIES = {
         "lignina": 8.5,
         "adaptacao": ["Cerrado", "Caatinga", "Pantanal"],
         "objetivos": ["Palhada", "Carbono", "Descompactação"],
-        "decomp_k": 0.035
+        "decomp_k": 0.035,
+        "referencia": "Embrapa Milho e Sorgo"
     },
     "Crotalária": {
         "biomassa_min": 6, "biomassa_max": 10,
@@ -78,7 +190,8 @@ BANCO_ESPECIES = {
         "lignina": 5.2,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal"],
         "objetivos": ["Nitrogênio", "Palhada", "Nematoides"],
-        "decomp_k": 0.045
+        "decomp_k": 0.045,
+        "referencia": "Embrapa Agrobiologia"
     },
     "Braquiária brizantha": {
         "biomassa_min": 10, "biomassa_max": 18,
@@ -88,7 +201,8 @@ BANCO_ESPECIES = {
         "lignina": 10.2,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Pantanal"],
         "objetivos": ["Carbono", "Palhada", "Pastagem"],
-        "decomp_k": 0.025
+        "decomp_k": 0.025,
+        "referencia": "Embrapa Gado de Corte"
     },
     "Braquiária ruziziensis": {
         "biomassa_min": 8, "biomassa_max": 14,
@@ -98,7 +212,8 @@ BANCO_ESPECIES = {
         "lignina": 9.1,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia"],
         "objetivos": ["Palhada", "Carbono"],
-        "decomp_k": 0.030
+        "decomp_k": 0.030,
+        "referencia": "Embrapa Cerrados"
     },
     "Feijão-guandu": {
         "biomassa_min": 5, "biomassa_max": 9,
@@ -108,7 +223,8 @@ BANCO_ESPECIES = {
         "lignina": 4.8,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal"],
         "objetivos": ["Nitrogênio", "Palhada", "Reciclagem"],
-        "decomp_k": 0.040
+        "decomp_k": 0.040,
+        "referencia": "Embrapa Arroz e Feijão"
     },
     "Capim mombaça": {
         "biomassa_min": 12, "biomassa_max": 20,
@@ -118,7 +234,8 @@ BANCO_ESPECIES = {
         "lignina": 11.5,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia"],
         "objetivos": ["Carbono", "Palhada"],
-        "decomp_k": 0.020
+        "decomp_k": 0.020,
+        "referencia": "Embrapa Pecuária Sudeste"
     },
     "Aveia-preta": {
         "biomassa_min": 4, "biomassa_max": 7,
@@ -128,7 +245,8 @@ BANCO_ESPECIES = {
         "lignina": 6.3,
         "adaptacao": ["Pampa", "Mata Atlântica"],
         "objetivos": ["Palhada", "Reciclagem"],
-        "decomp_k": 0.042
+        "decomp_k": 0.042,
+        "referencia": "Embrapa Trigo"
     },
     "Ervilhaca": {
         "biomassa_min": 3, "biomassa_max": 6,
@@ -138,7 +256,8 @@ BANCO_ESPECIES = {
         "lignina": 3.8,
         "adaptacao": ["Pampa", "Mata Atlântica"],
         "objetivos": ["Nitrogênio", "Palhada"],
-        "decomp_k": 0.045
+        "decomp_k": 0.045,
+        "referencia": "Embrapa Clima Temperado"
     },
     "Nabo-forrageiro": {
         "biomassa_min": 4, "biomassa_max": 8,
@@ -148,7 +267,8 @@ BANCO_ESPECIES = {
         "lignina": 4.2,
         "adaptacao": ["Cerrado", "Pampa", "Mata Atlântica"],
         "objetivos": ["Descompactação", "Reciclagem"],
-        "decomp_k": 0.048
+        "decomp_k": 0.048,
+        "referencia": "Embrapa Soja"
     },
     "Sorgo": {
         "biomassa_min": 8, "biomassa_max": 15,
@@ -158,7 +278,8 @@ BANCO_ESPECIES = {
         "lignina": 7.8,
         "adaptacao": ["Cerrado", "Caatinga", "Pantanal"],
         "objetivos": ["Palhada", "Carbono"],
-        "decomp_k": 0.032
+        "decomp_k": 0.032,
+        "referencia": "Embrapa Milho e Sorgo"
     },
     "Soja": {
         "biomassa_min": 3, "biomassa_max": 5,
@@ -168,7 +289,8 @@ BANCO_ESPECIES = {
         "lignina": 3.2,
         "adaptacao": ["Cerrado", "Mata Atlântica", "Pampa"],
         "objetivos": ["Nitrogênio", "Reciclagem"],
-        "decomp_k": 0.050
+        "decomp_k": 0.050,
+        "referencia": "Embrapa Soja"
     },
     "Puerária": {
         "biomassa_min": 6, "biomassa_max": 10,
@@ -178,8 +300,35 @@ BANCO_ESPECIES = {
         "lignina": 7.5,
         "adaptacao": ["Amazônia", "Mata Atlântica"],
         "objetivos": ["Palhada", "Carbono", "Nitrogênio"],
-        "decomp_k": 0.028
+        "decomp_k": 0.028,
+        "referencia": "Embrapa Amazônia Oriental"
     }
+}
+
+# ============================================================================
+# REFERÊNCIAS TÉCNICAS
+# ============================================================================
+
+REFERENCIAS_TECNICAS = {
+    "Embrapa": [
+        "EMBRAPA. Sistema Brasileiro de Classificação de Solos. Brasília: Embrapa, 2018.",
+        "EMBRAPA. Manual de Métodos de Análise de Solo. Brasília: Embrapa, 2017.",
+        "EMBRAPA. Fertilidade do Solo e Nutrição de Plantas. Brasília: Embrapa, 2020.",
+        "EMBRAPA. Manejo da Matéria Orgânica do Solo. Brasília: Embrapa, 2019."
+    ],
+    "Boletim 100": [
+        "SOCIEDADE BRASILEIRA DE CIÊNCIA DO SOLO. Boletim Técnico 100: Interpretação de Análises de Solo. Viçosa: SBCS, 2016.",
+        "SOCIEDADE BRASILEIRA DE CIÊNCIA DO SOLO. Boletim Técnico 100: Recomendações para o Manejo da Fertilidade do Solo. Viçosa: SBCS, 2018.",
+        "SOCIEDADE BRASILEIRA DE CIÊNCIA DO SOLO. Boletim Técnico 100: Dinâmica da Matéria Orgânica em Solos Tropicais. Viçosa: SBCS, 2020."
+    ],
+    "Conceitos Fundamentais": [
+        "A matéria orgânica do solo é composta por resíduos vegetais e animais em diferentes estágios de decomposição.",
+        "A ciclagem de nutrientes envolve a mineralização da matéria orgânica, liberando N, P, K e micronutrientes.",
+        "A cobertura vegetal protege o solo contra erosão, reduz a temperatura e mantém a umidade.",
+        "A decomposição de resíduos é influenciada pela relação C/N, lignina, temperatura, umidade e textura do solo.",
+        "Plantas de cobertura com alta relação C/N (ex: braquiárias) favorecem o acúmulo de matéria orgânica.",
+        "Plantas de cobertura com baixa relação C/N (ex: crotalária) favorecem a rápida liberação de nutrientes."
+    ]
 }
 
 # ============================================================================
@@ -306,18 +455,18 @@ def recomendar_coberturas_inteligentes(objetivo, bioma, periodo_seco, regiao):
     """Recomenda coberturas baseadas em objetivo, bioma, período seco e região"""
     recomendacoes = []
     
+    objetivo_map = {
+        "Produzir palhada": "Palhada",
+        "Produzir matéria orgânica": "Carbono",
+        "Descompactação": "Descompactação",
+        "Reciclagem de nutrientes": "Reciclagem",
+        "Fixação biológica de nitrogênio": "Nitrogênio",
+        "Controle de nematoides": "Nematoides"
+    }
+    objetivo_clean = objetivo_map.get(objetivo, "Palhada")
+    
     for especie, dados in BANCO_ESPECIES.items():
         if bioma in dados["adaptacao"]:
-            objetivo_map = {
-                "Produzir palhada": "Palhada",
-                "Produzir matéria orgânica": "Carbono",
-                "Descompactação": "Descompactação",
-                "Reciclagem de nutrientes": "Reciclagem",
-                "Fixação biológica de nitrogênio": "Nitrogênio",
-                "Controle de nematoides": "Nematoides"
-            }
-            objetivo_clean = objetivo_map.get(objetivo, "Palhada")
-            
             if objetivo_clean in dados["objetivos"]:
                 persistencia_dias = int(dados["persistencia"].split("-")[0])
                 if persistencia_dias >= periodo_seco * 0.7:
@@ -327,6 +476,7 @@ def recomendar_coberturas_inteligentes(objetivo, bioma, periodo_seco, regiao):
                         "persistencia": dados["persistencia"],
                         "carbono": dados["carbono_incremento"],
                         "relacao_cn": dados["relacao_cn"],
+                        "referencia": dados.get("referencia", "Embrapa"),
                         "score": (dados["biomassa_max"] / 20) * 100 + (dados["relacao_cn"] / 80) * 100
                     })
     
@@ -467,41 +617,37 @@ def identificar_bioma_manual(lat, lon):
 def criar_grafico_altair(df):
     """Cria gráficos usando Altair"""
     
-    # Gráfico 1: Decomposição
-    chart1 = alt.Chart(df).mark_line(point=True, color='blue').encode(
+    chart1 = alt.Chart(df).mark_line(point=True, color='#2e7d32').encode(
         x=alt.X('Dias:Q', title='Dias'),
         y=alt.Y('Decomposição (%):Q', title='Decomposição (%)')
     ).properties(
         title='Decomposição',
         height=250
-    )
+    ).configure_title(fontSize=14, fontWeight='bold')
     
-    # Gráfico 2: Massa Restante
-    chart2 = alt.Chart(df).mark_line(point=True, color='green').encode(
+    chart2 = alt.Chart(df).mark_line(point=True, color='#1565c0').encode(
         x=alt.X('Dias:Q', title='Dias'),
         y=alt.Y('Massa Restante (t/ha):Q', title='Massa Restante (t/ha)')
     ).properties(
         title='Massa Restante',
         height=250
-    )
+    ).configure_title(fontSize=14, fontWeight='bold')
     
-    # Gráfico 3: Carbono
-    chart3 = alt.Chart(df).mark_line(point=True, color='orange').encode(
+    chart3 = alt.Chart(df).mark_line(point=True, color='#e65100').encode(
         x=alt.X('Dias:Q', title='Dias'),
         y=alt.Y('Carbono (t/ha):Q', title='Carbono (t/ha)')
     ).properties(
         title='Carbono Residual',
         height=250
-    )
+    ).configure_title(fontSize=14, fontWeight='bold')
     
-    # Gráfico 4: Matéria Orgânica
-    chart4 = alt.Chart(df).mark_line(point=True, color='red').encode(
+    chart4 = alt.Chart(df).mark_line(point=True, color='#c62828').encode(
         x=alt.X('Dias:Q', title='Dias'),
         y=alt.Y('Matéria Orgânica (t/ha):Q', title='Matéria Orgânica (t/ha)')
     ).properties(
         title='Matéria Orgânica Adicionada',
         height=250
-    )
+    ).configure_title(fontSize=14, fontWeight='bold')
     
     return chart1, chart2, chart3, chart4
 
@@ -512,6 +658,129 @@ def download_excel(df):
     with pd.ExcelWriter(output, engine='openpyxl') as writer:
         df.to_excel(writer, index=False, sheet_name='Simulação')
     return output.getvalue()
+
+
+def exibir_mapa(lat, lon):
+    """Exibe um mapa com marcador na posição informada"""
+    
+    if not (-33.75 <= lat <= 5.27) or not (-73.98 <= lon <= -34.79):
+        st.warning("⚠️ Coordenadas fora do território brasileiro. Verifique os valores informados.")
+        return
+    
+    # Criar um DataFrame com a localização
+    df_mapa = pd.DataFrame({
+        'lat': [lat],
+        'lon': [lon],
+        'Local': ['Propriedade']
+    })
+    
+    # Criar mapa com Altair
+    mapa = alt.Chart(df_mapa).mark_circle(
+        size=300,
+        color='#2e7d32',
+        opacity=0.9
+    ).encode(
+        longitude='lon:Q',
+        latitude='lat:Q',
+        tooltip=['Local', 'lat', 'lon']
+    ).properties(
+        title='📍 Localização da Propriedade',
+        width=700,
+        height=400
+    ).project(
+        type='mercator'
+    )
+    
+    # Adicionar contorno do Brasil (simplificado)
+    st.altair_chart(mapa, use_container_width=True)
+    
+    # Exibir coordenadas formatadas
+    st.markdown(f"""
+    <div style='background-color: #f5f7fa; padding: 15px; border-radius: 10px; margin-top: 10px; text-align: center;'>
+        <b>Latitude:</b> {lat:.4f}° | <b>Longitude:</b> {lon:.4f}°
+    </div>
+    """, unsafe_allow_html=True)
+
+
+def exibir_dados_propriedade():
+    """Exibe os dados da propriedade em formato amigável"""
+    
+    cad = st.session_state["cadastro"]
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("""
+        <div class="card-dados">
+            <label>👤 Proprietário</label>
+            <div class="valor">{}</div>
+        </div>
+        """.format(cad["nome"] or "Não informado"), unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="card-dados">
+            <label>📧 E-mail</label>
+            <div class="valor">{}</div>
+        </div>
+        """.format(cad["email"] or "Não informado"), unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="card-dados">
+            <label>📱 Telefone</label>
+            <div class="valor">{}</div>
+        </div>
+        """.format(cad["telefone"] or "Não informado"), unsafe_allow_html=True)
+    
+    with col2:
+        st.markdown("""
+        <div class="card-dados">
+            <label>🏢 Fazenda</label>
+            <div class="valor">{}</div>
+        </div>
+        """.format(cad["fazenda"] or "Não informado"), unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="card-dados">
+            <label>📍 Localização</label>
+            <div class="valor">{} - {}</div>
+        </div>
+        """.format(cad["municipio"] or "Não informado", cad["estado"] or "Não informado"), unsafe_allow_html=True)
+        
+        st.markdown("""
+        <div class="card-dados">
+            <label>📐 Área Total</label>
+            <div class="valor">{:.1f} ha</div>
+        </div>
+        """.format(cad["area_total"]), unsafe_allow_html=True)
+
+
+def exibir_referencias():
+    """Exibe as referências técnicas"""
+    
+    with st.expander("📚 Referências Técnicas - Embrapa e Boletim 100", expanded=False):
+        st.markdown("""
+        <div class="ref-container">
+            <h4>🌱 Embrapa</h4>
+        """, unsafe_allow_html=True)
+        for ref in REFERENCIAS_TECNICAS["Embrapa"]:
+            st.markdown(f"• {ref}")
+        
+        st.markdown("""
+        </div>
+        <div class="ref-container">
+            <h4>📊 Boletim 100 - SBCS</h4>
+        """, unsafe_allow_html=True)
+        for ref in REFERENCIAS_TECNICAS["Boletim 100"]:
+            st.markdown(f"• {ref}")
+        
+        st.markdown("""
+        </div>
+        <div class="ref-container">
+            <h4>📖 Fundamentos Técnicos</h4>
+        """, unsafe_allow_html=True)
+        for ref in REFERENCIAS_TECNICAS["Conceitos Fundamentais"]:
+            st.markdown(f"• {ref}")
+        st.markdown("</div>", unsafe_allow_html=True)
 
 # ============================================================================
 # FUNÇÕES DE RENDERIZAÇÃO DE CADA ABA
@@ -543,9 +812,28 @@ def render_cadastro():
     
     col3, col4 = st.columns(2)
     with col3:
-        latitude = st.number_input("Latitude", min_value=-33.75, max_value=5.27, value=st.session_state["cadastro"]["latitude"], format="%.4f", key="cad_lat")
+        latitude = st.number_input(
+            "Latitude",
+            min_value=-33.75,
+            max_value=5.27,
+            value=st.session_state["cadastro"]["latitude"],
+            format="%.4f",
+            key="cad_lat"
+        )
     with col4:
-        longitude = st.number_input("Longitude", min_value=-73.98, max_value=-34.79, value=st.session_state["cadastro"]["longitude"], format="%.4f", key="cad_lon")
+        longitude = st.number_input(
+            "Longitude",
+            min_value=-73.98,
+            max_value=-34.79,
+            value=st.session_state["cadastro"]["longitude"],
+            format="%.4f",
+            key="cad_lon"
+        )
+    
+    # Exibir mapa automaticamente
+    st.markdown("---")
+    st.subheader("🗺️ Visualização da Localização")
+    exibir_mapa(latitude, longitude)
     
     st.markdown("---")
     
@@ -560,10 +848,14 @@ def render_cadastro():
         st.session_state["cadastro"]["latitude"] = latitude
         st.session_state["cadastro"]["longitude"] = longitude
         st.success("✅ Cadastro salvo com sucesso!")
-        st.balloons()
     
-    with st.expander("📊 Dados Salvos", expanded=False):
-        st.json(st.session_state["cadastro"])
+    # Exibir dados salvos em formato amigável
+    st.markdown("---")
+    st.subheader("📊 Dados da Propriedade")
+    exibir_dados_propriedade()
+    
+    # Referências
+    exibir_referencias()
 
 
 def render_manejo():
@@ -620,17 +912,30 @@ def render_manejo():
     st.subheader("⭐ Qualidade do Manejo")
     qualidade = calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd)
     
-    cores = {"Excelente": "🟢", "Boa": "🔵", "Média": "🟡", "Baixa": "🟠", "Muito baixa": "🔴"}
+    cores_qualidade = {
+        "Excelente": ("🟢", "#1b5e20"),
+        "Boa": ("🔵", "#0d47a1"),
+        "Média": ("🟡", "#f9a825"),
+        "Baixa": ("🟠", "#e65100"),
+        "Muito baixa": ("🔴", "#b71c1c")
+    }
+    
+    emoji, cor = cores_qualidade.get(qualidade, ("", "#666"))
     
     st.markdown(f"""
-    <div style='background-color: #f0f2f6; padding: 20px; border-radius: 10px; text-align: center;'>
-        <h2>{cores.get(qualidade, '')} {qualidade}</h2>
-        <p style='font-size: 14px; color: #666;'>Baseado nos indicadores de matéria orgânica, pH, CTC, argila e anos em plantio direto</p>
+    <div style='background-color: #f0f2f6; padding: 25px; border-radius: 12px; text-align: center;'>
+        <h2 style='color: {cor}; margin: 0;'>{emoji} {qualidade}</h2>
+        <p style='font-size: 14px; color: #555; margin-top: 8px;'>
+            Baseado nos indicadores de matéria orgânica, pH, CTC, argila e anos em plantio direto
+        </p>
     </div>
     """, unsafe_allow_html=True)
     
     if st.button("📊 Salvar Diagnóstico", use_container_width=True, type="primary"):
         st.success("✅ Diagnóstico salvo com sucesso!")
+    
+    # Referências
+    exibir_referencias()
 
 
 def render_cobertura():
@@ -645,9 +950,9 @@ def render_cobertura():
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Latitude", f"{lat:.4f}")
+        st.metric("Latitude", f"{lat:.4f}°")
     with col2:
-        st.metric("Longitude", f"{lon:.4f}")
+        st.metric("Longitude", f"{lon:.4f}°")
     
     if not st.session_state["cobertura"]["bioma"]:
         bioma, clima = identificar_bioma_manual(lat, lon)
@@ -686,19 +991,24 @@ def render_cobertura():
         st.success(f"✅ {len(recomendacoes)} recomendações baseadas no bioma **{bioma}**")
         
         for i, rec in enumerate(recomendacoes):
+            classe = "card-recomendacao destaque" if i == 0 else "card-recomendacao"
             st.markdown(f"""
-            <div style='background-color: {"#e8f5e9" if i==0 else "#f5f5f5"}; padding: 15px; border-radius: 10px; margin: 10px 0; border-left: 5px solid {"#2e7d32" if i==0 else "#999"};'>
-                <h3>{'⭐ ' if i==0 else ''}🌱 {rec['especie']}</h3>
-                <p><b>Biomassa:</b> {rec['biomassa']} t/ha</p>
+            <div class="{classe}">
+                <h3>{'⭐ ' if i == 0 else ''}🌱 {rec['especie']}</h3>
+                <p><b>Biomassa estimada:</b> {rec['biomassa']} t/ha</p>
                 <p><b>Persistência:</b> {rec['persistencia']}</p>
-                <p><b>Carbono:</b> {rec['carbono']} t/ha</p>
+                <p><b>Incremento de carbono:</b> {rec['carbono']} t/ha</p>
                 <p><b>Relação C/N:</b> {rec['relacao_cn']}</p>
+                <p><b>Referência:</b> {rec.get('referencia', 'Embrapa')}</p>
             </div>
             """, unsafe_allow_html=True)
         
         st.session_state["cobertura"]["recomendacoes"] = [rec["especie"] for rec in recomendacoes]
     else:
         st.warning("⚠️ Selecione um bioma para obter recomendações")
+    
+    # Referências
+    exibir_referencias()
 
 
 def render_consorcio():
@@ -726,8 +1036,15 @@ def render_consorcio():
                 for beneficio in consorcio["beneficios"]:
                     st.markdown(f"✅ {beneficio}")
             with col2:
-                st.metric(label="Impacto produtivo estimado", value=consorcio["impacto"])
+                st.metric(
+                    label="Impacto produtivo estimado",
+                    value=consorcio["impacto"],
+                    delta="Perda estimada" if "-" in consorcio["impacto"] else "Ganho estimado"
+                )
                 st.caption("Valor estimado: depende do clima, fertilidade e manejo")
+    
+    # Referências
+    exibir_referencias()
 
 
 def render_decomposicao():
@@ -746,6 +1063,18 @@ def render_decomposicao():
     with col2:
         massa_seca = st.number_input("Quantidade de Massa Seca (t/ha)", min_value=1.0, max_value=30.0, value=st.session_state["decomposicao"]["massa_seca"], step=0.5, key="dec_massa")
         st.session_state["decomposicao"]["massa_seca"] = massa_seca
+    
+    # Exibir informações da espécie selecionada
+    if cobertura in BANCO_ESPECIES:
+        dados = BANCO_ESPECIES[cobertura]
+        st.info(f"""
+        **📋 Informações da espécie:**
+        - Biomassa: {dados['biomassa_min']}-{dados['biomassa_max']} t/ha
+        - Relação C/N: {dados['relacao_cn']}
+        - Lignina: {dados['lignina']}%
+        - Persistência: {dados['persistencia']}
+        - Referência: {dados.get('referencia', 'Embrapa')}
+        """)
     
     st.markdown("---")
     
@@ -787,8 +1116,21 @@ def render_decomposicao():
             st.metric("MO adicionada em 180 dias", f"{df[df['Dias'] == 180]['Matéria Orgânica (t/ha)'].iloc[0]:.2f} t/ha")
         
         st.markdown("---")
-        excel_data = download_excel(df)
-        st.download_button(label="📊 Exportar para Excel", data=excel_data, file_name=f"decomposicao_{datetime.now().strftime('%Y%m%d')}.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", use_container_width=True, type="secondary")
+        try:
+            excel_data = download_excel(df)
+            st.download_button(
+                label="📊 Exportar para Excel",
+                data=excel_data,
+                file_name=f"decomposicao_{datetime.now().strftime('%Y%m%d')}.xlsx",
+                mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                use_container_width=True,
+                type="secondary"
+            )
+        except Exception as e:
+            st.error(f"❌ Erro ao exportar: {str(e)}. Verifique se o pacote openpyxl está instalado.")
+    
+    # Referências
+    exibir_referencias()
 
 
 def render_relatorio():
@@ -804,32 +1146,46 @@ def render_relatorio():
     if st.session_state["relatorio"]["gerado"]:
         st.markdown("---")
         st.markdown(f"""
-        <div style='background-color: #1f4b3a; color: white; padding: 20px; border-radius: 10px; margin-bottom: 30px;'>
-            <h1 style='color: white;'>🌱 SoilCarbon Planner</h1>
-            <h3 style='color: white;'>Sistema Inteligente de Coberturas Vegetais</h3>
-            <p style='color: #c8e6c9;'>Data: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
+        <div style='background-color: #1b5e20; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;'>
+            <h1 style='color: white; margin: 0;'>🌱 SoilCarbon Planner</h1>
+            <h3 style='color: #c8e6c9; margin: 5px 0;'>Sistema Inteligente de Coberturas Vegetais</h3>
+            <p style='color: #a5d6a7; margin: 5px 0;'>Data: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
         </div>
         """, unsafe_allow_html=True)
         
         with st.expander("🏢 Resumo da Propriedade", expanded=True):
             cad = st.session_state["cadastro"]
-            st.markdown(f"**Fazenda:** {cad['fazenda']} | **Município:** {cad['municipio']} | **Estado:** {cad['estado']} | **Área:** {cad['area_total']:.1f} ha")
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown(f"**Fazenda:** {cad['fazenda'] or 'Não informado'}")
+                st.markdown(f"**Município:** {cad['municipio'] or 'Não informado'}")
+            with col2:
+                st.markdown(f"**Estado:** {cad['estado'] or 'Não informado'}")
+                st.markdown(f"**Área Total:** {cad['area_total']:.1f} ha")
         
         with st.expander("🔬 Diagnóstico de Manejo", expanded=True):
             man = st.session_state["manejo"]
-            st.markdown(f"**Tipo:** {man['tipo']} | **Anos PD:** {man['anos']} | **MO:** {man['materia_organica']:.1f}% | **Argila:** {man['argila']:.1f}% | **pH:** {man['ph']:.1f} | **CTC:** {man['ctc']:.1f}")
+            st.markdown(f"**Tipo de Manejo:** {man['tipo']}")
+            st.markdown(f"**Anos em PD:** {man['anos']}")
+            st.markdown(f"**Matéria Orgânica:** {man['materia_organica']:.1f}%")
+            st.markdown(f"**Argila:** {man['argila']:.1f}%")
+            st.markdown(f"**pH:** {man['ph']:.1f}")
+            st.markdown(f"**CTC:** {man['ctc']:.1f} meq/100g")
         
         with st.expander("🌿 Coberturas Recomendadas", expanded=True):
             cov = st.session_state["cobertura"]
-            st.markdown(f"**Objetivo:** {cov['objetivo']} | **Bioma:** {cov['bioma']}")
+            st.markdown(f"**Objetivo:** {cov['objetivo']}")
+            st.markdown(f"**Bioma:** {cov['bioma']}")
             if cov['recomendacoes']:
+                st.markdown("**Recomendações:**")
                 for rec in cov['recomendacoes']:
                     st.markdown(f"✅ {rec}")
         
         with st.expander("📊 Simulação de Decomposição", expanded=True):
             dec = st.session_state["decomposicao"]
             if dec['dados_simulacao'] is not None:
-                st.markdown(f"**Cobertura:** {dec['cobertura']} | **Massa Seca:** {dec['massa_seca']:.1f} t/ha")
+                st.markdown(f"**Cobertura:** {dec['cobertura']}")
+                st.markdown(f"**Massa Seca:** {dec['massa_seca']:.1f} t/ha")
                 st.dataframe(dec['dados_simulacao'], use_container_width=True, hide_index=True)
             else:
                 st.warning("Nenhuma simulação realizada")
@@ -838,6 +1194,9 @@ def render_relatorio():
         st.info("✅ Relatório completo gerado com sucesso!")
     else:
         st.info("📌 Clique em 'GERAR RELATÓRIO' para visualizar o relatório completo")
+    
+    # Referências
+    exibir_referencias()
 
 # ============================================================================
 # MAIN - APLICAÇÃO PRINCIPAL
@@ -853,15 +1212,24 @@ st.markdown("""
 init_session_state()
 
 st.sidebar.title("📋 Navegação")
-aba = st.sidebar.radio("Selecione uma seção:", ["📝 Cadastro", "🔬 Manejo", "🌿 Coberturas", "🌾 Consórcios", "📊 Decomposição", "📄 Relatório"], index=0)
+aba = st.sidebar.radio(
+    "Selecione uma seção:",
+    ["📝 Cadastro", "🔬 Manejo", "🌿 Coberturas", "🌾 Consórcios", "📊 Decomposição", "📄 Relatório"],
+    index=0
+)
 
 st.sidebar.markdown("---")
-st.sidebar.info("**Desenvolvido para Agronomia**\n\nEste sistema auxilia no planejamento de coberturas vegetais e manejo da matéria orgânica do solo.")
+st.sidebar.info(
+    "**🌱 SoilCarbon Planner**\n\n"
+    "Sistema desenvolvido para auxiliar no planejamento de coberturas vegetais e manejo da matéria orgânica do solo.\n\n"
+    "**Referências:** Embrapa e Boletim 100 - SBCS"
+)
 
 if st.session_state["cadastro"]["nome"]:
     st.sidebar.success(f"👤 {st.session_state['cadastro']['nome']}")
-    st.sidebar.caption(f"🏢 {st.session_state['cadastro']['fazenda']}")
+    st.sidebar.caption(f"🏢 {st.session_state['cadastro']['fazenda'] or 'Propriedade não cadastrada'}")
 
+# Roteamento das abas
 if aba == "📝 Cadastro":
     render_cadastro()
 elif aba == "🔬 Manejo":
@@ -876,4 +1244,4 @@ elif aba == "📄 Relatório":
     render_relatorio()
 
 st.markdown("---")
-st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia")
+st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia | Base técnico-científica: Embrapa e Boletim 100 - SBCS")
