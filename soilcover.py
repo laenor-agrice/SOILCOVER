@@ -8,6 +8,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 from datetime import datetime
 import requests
+import io
+import base64
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -51,14 +53,135 @@ st.markdown("""
         background-color: #1b5e20;
         color: white;
     }
-    .stSelectbox > div > div {
-        background-color: #f5f5f5;
-    }
-    .stNumberInput > div > div {
-        background-color: #f5f5f5;
-    }
 </style>
 """, unsafe_allow_html=True)
+
+# ============================================================================
+# BANCO DE DADOS DE ESPÉCIES
+# ============================================================================
+
+BANCO_ESPECIES = {
+    "Milheto": {
+        "biomassa_min": 8, "biomassa_max": 12,
+        "persistencia": "90-120 dias",
+        "carbono_incremento": "1.8-2.4",
+        "relacao_cn": 60,
+        "lignina": 8.5,
+        "adaptacao": ["Cerrado", "Caatinga", "Pantanal"],
+        "objetivos": ["Palhada", "Carbono", "Descompactação"],
+        "decomp_k": 0.035
+    },
+    "Crotalária": {
+        "biomassa_min": 6, "biomassa_max": 10,
+        "persistencia": "60-90 dias",
+        "carbono_incremento": "1.2-1.8",
+        "relacao_cn": 25,
+        "lignina": 5.2,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal"],
+        "objetivos": ["Nitrogênio", "Palhada", "Nematoides"],
+        "decomp_k": 0.045
+    },
+    "Braquiária brizantha": {
+        "biomassa_min": 10, "biomassa_max": 18,
+        "persistencia": "120-180 dias",
+        "carbono_incremento": "2.5-3.5",
+        "relacao_cn": 70,
+        "lignina": 10.2,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Pantanal"],
+        "objetivos": ["Carbono", "Palhada", "Pastagem"],
+        "decomp_k": 0.025
+    },
+    "Braquiária ruziziensis": {
+        "biomassa_min": 8, "biomassa_max": 14,
+        "persistencia": "90-150 dias",
+        "carbono_incremento": "2.0-3.0",
+        "relacao_cn": 65,
+        "lignina": 9.1,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia"],
+        "objetivos": ["Palhada", "Carbono"],
+        "decomp_k": 0.030
+    },
+    "Feijão-guandu": {
+        "biomassa_min": 5, "biomassa_max": 9,
+        "persistencia": "60-90 dias",
+        "carbono_incremento": "1.0-1.5",
+        "relacao_cn": 20,
+        "lignina": 4.8,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal"],
+        "objetivos": ["Nitrogênio", "Palhada", "Reciclagem"],
+        "decomp_k": 0.040
+    },
+    "Capim mombaça": {
+        "biomassa_min": 12, "biomassa_max": 20,
+        "persistencia": "150-210 dias",
+        "carbono_incremento": "3.0-4.0",
+        "relacao_cn": 75,
+        "lignina": 11.5,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Amazônia"],
+        "objetivos": ["Carbono", "Palhada"],
+        "decomp_k": 0.020
+    },
+    "Aveia-preta": {
+        "biomassa_min": 4, "biomassa_max": 7,
+        "persistencia": "60-90 dias",
+        "carbono_incremento": "0.8-1.2",
+        "relacao_cn": 40,
+        "lignina": 6.3,
+        "adaptacao": ["Pampa", "Mata Atlântica"],
+        "objetivos": ["Palhada", "Reciclagem"],
+        "decomp_k": 0.042
+    },
+    "Ervilhaca": {
+        "biomassa_min": 3, "biomassa_max": 6,
+        "persistencia": "45-75 dias",
+        "carbono_incremento": "0.6-1.0",
+        "relacao_cn": 15,
+        "lignina": 3.8,
+        "adaptacao": ["Pampa", "Mata Atlântica"],
+        "objetivos": ["Nitrogênio", "Palhada"],
+        "decomp_k": 0.045
+    },
+    "Nabo-forrageiro": {
+        "biomassa_min": 4, "biomassa_max": 8,
+        "persistencia": "45-60 dias",
+        "carbono_incremento": "0.8-1.2",
+        "relacao_cn": 30,
+        "lignina": 4.2,
+        "adaptacao": ["Cerrado", "Pampa", "Mata Atlântica"],
+        "objetivos": ["Descompactação", "Reciclagem"],
+        "decomp_k": 0.048
+    },
+    "Sorgo": {
+        "biomassa_min": 8, "biomassa_max": 15,
+        "persistencia": "90-120 dias",
+        "carbono_incremento": "1.8-2.8",
+        "relacao_cn": 55,
+        "lignina": 7.8,
+        "adaptacao": ["Cerrado", "Caatinga", "Pantanal"],
+        "objetivos": ["Palhada", "Carbono"],
+        "decomp_k": 0.032
+    },
+    "Soja": {
+        "biomassa_min": 3, "biomassa_max": 5,
+        "persistencia": "30-60 dias",
+        "carbono_incremento": "0.5-0.8",
+        "relacao_cn": 12,
+        "lignina": 3.2,
+        "adaptacao": ["Cerrado", "Mata Atlântica", "Pampa"],
+        "objetivos": ["Nitrogênio", "Reciclagem"],
+        "decomp_k": 0.050
+    },
+    "Puerária": {
+        "biomassa_min": 6, "biomassa_max": 10,
+        "persistencia": "90-150 dias",
+        "carbono_incremento": "1.5-2.2",
+        "relacao_cn": 50,
+        "lignina": 7.5,
+        "adaptacao": ["Amazônia", "Mata Atlântica"],
+        "objetivos": ["Palhada", "Carbono", "Nitrogênio"],
+        "decomp_k": 0.028
+    }
+}
 
 # ============================================================================
 # FUNÇÕES UTILITÁRIAS
@@ -89,6 +212,8 @@ def init_session_state():
             "argila": 30.0,
             "ph": 6.0,
             "ctc": 8.0,
+            "temperatura_media": 25.0,
+            "precipitacao": 1500.0,
         }
     
     if "cobertura" not in st.session_state:
@@ -97,6 +222,8 @@ def init_session_state():
             "bioma": "",
             "clima": "",
             "recomendacoes": [],
+            "periodo_seco": 90,
+            "regiao": "Centro-Oeste",
         }
     
     if "consorcio" not in st.session_state:
@@ -117,15 +244,13 @@ def init_session_state():
             "gerado": False,
             "conteudo": "",
         }
-    
-    if "aba_atual" not in st.session_state:
-        st.session_state["aba_atual"] = "Cadastro"
 
 
 def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
-    """Calcula a qualidade do manejo baseado nos indicadores"""
+    """Calcula a qualidade do manejo baseado nos indicadores (argila agora é usada)"""
     pontuacao = 0
     
+    # Matéria orgânica (0-10%)
     if mo >= 4.0:
         pontuacao += 25
     elif mo >= 3.0:
@@ -137,6 +262,7 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 5
     
+    # pH (5.5-6.5 ideal)
     if 5.5 <= ph <= 6.5:
         pontuacao += 25
     elif 5.0 <= ph <= 7.0:
@@ -144,6 +270,7 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 10
     
+    # CTC (meq/100g)
     if ctc >= 10:
         pontuacao += 25
     elif ctc >= 6:
@@ -151,6 +278,7 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 10
     
+    # Anos em plantio direto
     if anos_pd >= 10:
         pontuacao += 25
     elif anos_pd >= 5:
@@ -160,75 +288,55 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 5
     
-    if pontuacao >= 90:
+    # Argila (%) - AGORA USADA!
+    if argila >= 60:
+        pontuacao += 10
+    elif argila >= 35:
+        pontuacao += 7
+    else:
+        pontuacao += 3
+    
+    if pontuacao >= 95:
         return "Excelente"
-    elif pontuacao >= 75:
+    elif pontuacao >= 80:
         return "Boa"
-    elif pontuacao >= 60:
+    elif pontuacao >= 65:
         return "Média"
-    elif pontuacao >= 40:
+    elif pontuacao >= 45:
         return "Baixa"
     else:
         return "Muito baixa"
 
 
-def recomendar_coberturas(objetivo, bioma):
-    """Recomenda coberturas vegetais baseado no objetivo e bioma"""
-    recomendacoes = {
-        "Produzir palhada": {
-            "Cerrado": ["Milheto", "Crotalária", "Braquiária ruziziensis"],
-            "Mata Atlântica": ["Crotalária", "Feijão-guandu", "Braquiária"],
-            "Amazônia": ["Crotalária", "Feijão-guandu", "Puerária"],
-            "Pampa": ["Aveia-preta", "Ervilhaca", "Nabo-forrageiro"],
-            "Caatinga": ["Crotalária", "Feijão-guandu", "Sorgo"],
-            "Pantanal": ["Braquiária", "Milheto", "Crotalária"],
-        },
-        "Produzir matéria orgânica": {
-            "Cerrado": ["Braquiária brizantha", "Capim mombaça", "Milheto"],
-            "Mata Atlântica": ["Braquiária", "Crotalária", "Feijão-guandu"],
-            "Amazônia": ["Braquiária brizantha", "Puerária", "Crotalária"],
-            "Pampa": ["Aveia-preta", "Azevém", "Ervilhaca"],
-            "Caatinga": ["Braquiária", "Sorgo", "Milheto"],
-            "Pantanal": ["Braquiária brizantha", "Capim mombaça"],
-        },
-        "Descompactação": {
-            "Cerrado": ["Crotalária", "Feijão-guandu", "Nabo-forrageiro"],
-            "Mata Atlântica": ["Crotalária", "Nabo-forrageiro", "Feijão-guandu"],
-            "Amazônia": ["Crotalária", "Feijão-guandu"],
-            "Pampa": ["Nabo-forrageiro", "Aveia-preta"],
-            "Caatinga": ["Crotalária", "Feijão-guandu"],
-            "Pantanal": ["Crotalária", "Nabo-forrageiro"],
-        },
-        "Reciclagem de nutrientes": {
-            "Cerrado": ["Crotalária", "Feijão-guandu", "Milheto"],
-            "Mata Atlântica": ["Crotalária", "Feijão-guandu", "Nabo-forrageiro"],
-            "Amazônia": ["Crotalária", "Feijão-guandu"],
-            "Pampa": ["Ervilhaca", "Aveia-preta", "Nabo-forrageiro"],
-            "Caatinga": ["Crotalária", "Feijão-guandu"],
-            "Pantanal": ["Crotalária", "Feijão-guandu"],
-        },
-        "Fixação biológica de nitrogênio": {
-            "Cerrado": ["Crotalária", "Feijão-guandu", "Soja"],
-            "Mata Atlântica": ["Crotalária", "Feijão-guandu", "Ervilhaca"],
-            "Amazônia": ["Crotalária", "Feijão-guandu"],
-            "Pampa": ["Ervilhaca", "Tremoço", "Soja"],
-            "Caatinga": ["Crotalária", "Feijão-guandu"],
-            "Pantanal": ["Crotalária", "Feijão-guandu"],
-        },
-        "Controle de nematoides": {
-            "Cerrado": ["Crotalária", "Feijão-guandu", "Milheto"],
-            "Mata Atlântica": ["Crotalária", "Feijão-guandu"],
-            "Amazônia": ["Crotalária", "Feijão-guandu"],
-            "Pampa": ["Crotalária", "Ervilhaca"],
-            "Caatinga": ["Crotalária", "Feijão-guandu"],
-            "Pantanal": ["Crotalária", "Feijão-guandu"],
-        },
-    }
+def recomendar_coberturas_inteligentes(objetivo, bioma, periodo_seco, regiao):
+    """
+    Recomenda coberturas baseadas em objetivo, bioma, período seco e região
+    Usa o banco de dados de espécies
+    """
+    recomendacoes = []
     
-    if bioma not in recomendacoes.get(objetivo, {}):
-        return recomendacoes.get(objetivo, {}).get("Cerrado", ["Crotalária", "Milheto", "Braquiária"])
+    for especie, dados in BANCO_ESPECIES.items():
+        # Verifica adaptação ao bioma
+        if bioma in dados["adaptacao"]:
+            # Verifica se atende ao objetivo
+            if objetivo in dados["objetivos"]:
+                # Verifica período seco
+                persistencia_dias = int(dados["persistencia"].split("-")[0])
+                if persistencia_dias >= periodo_seco * 0.7:
+                    recomendacoes.append({
+                        "especie": especie,
+                        "biomassa": f"{dados['biomassa_min']}-{dados['biomassa_max']}",
+                        "persistencia": dados["persistencia"],
+                        "carbono": dados["carbono_incremento"],
+                        "relacao_cn": dados["relacao_cn"],
+                        "score": (dados["biomassa_max"] / 20) * 100 + (dados["relacao_cn"] / 80) * 100
+                    })
     
-    return recomendacoes.get(objetivo, {}).get(bioma, ["Crotalária", "Milheto", "Braquiária"])
+    # Ordena por score
+    recomendacoes.sort(key=lambda x: x["score"], reverse=True)
+    
+    # Retorna as 3 melhores
+    return recomendacoes[:3]
 
 
 def recomendar_consorcios(cultura_principal):
@@ -259,9 +367,13 @@ def recomendar_consorcios(cultura_principal):
     ])
 
 
-def simular_decomposicao(cobertura, massa_seca):
-    """Simula a decomposição da cobertura vegetal ao longo do tempo"""
+def simular_decomposicao(cobertura, massa_seca, temperatura=25, precipitacao=1500, argila=30):
+    """
+    Simula a decomposição com fatores de correção
+    Agora corrigido: MO = Carbono * 1.724
+    """
     
+    # Coeficiente base
     coef_decomp = {
         "Crotalária": 0.045,
         "Feijão-guandu": 0.040,
@@ -277,7 +389,36 @@ def simular_decomposicao(cobertura, massa_seca):
         "Puerária": 0.028,
     }
     
-    k = coef_decomp.get(cobertura, 0.030)
+    k_base = coef_decomp.get(cobertura, 0.030)
+    
+    # Fatores de correção
+    # Temperatura (ótimo: 25-30°C)
+    if 25 <= temperatura <= 30:
+        f_temp = 1.0
+    elif temperatura > 30:
+        f_temp = 0.8
+    else:
+        f_temp = 0.6 + (temperatura - 10) / 50
+    
+    # Precipitação (ótimo: 1200-1800 mm)
+    if 1200 <= precipitacao <= 1800:
+        f_prec = 1.0
+    elif precipitacao > 1800:
+        f_prec = 0.9
+    else:
+        f_prec = 0.5 + (precipitacao / 2400)
+    
+    # Argila (textura)
+    if argila >= 60:  # Argiloso
+        f_argila = 0.7
+    elif argila >= 35:  # Média
+        f_argila = 0.9
+    else:  # Arenoso
+        f_argila = 1.2
+    
+    # Coeficiente ajustado
+    k = k_base * f_temp * f_prec * f_argila
+    
     dias = [0, 30, 60, 90, 120, 150, 180]
     
     dados = []
@@ -285,8 +426,8 @@ def simular_decomposicao(cobertura, massa_seca):
     for t in dias:
         massa_restante = massa_seca * np.exp(-k * t)
         decomposicao = ((massa_seca - massa_restante) / massa_seca) * 100
-        carbono = massa_restante * 0.45
-        mo = massa_restante * 1.724
+        carbono = massa_restante * 0.45  # 45% de carbono
+        mo = carbono * 1.724  # CORRIGIDO: carbono * 1.724
         
         dados.append({
             "Dias": t,
@@ -299,55 +440,79 @@ def simular_decomposicao(cobertura, massa_seca):
     return pd.DataFrame(dados)
 
 
-def identificar_bioma(lat, lon):
-    """Identifica o bioma baseado nas coordenadas"""
+def criar_grafico_decomposicao(df):
+    """Cria gráfico de decomposição usando Matplotlib com sintaxe mais robusta"""
     
-    biomas_por_estado = {
-        "AC": "Amazônia", "AL": "Mata Atlântica", "AP": "Amazônia",
-        "AM": "Amazônia", "BA": "Mata Atlântica/Caatinga", "CE": "Caatinga",
-        "DF": "Cerrado", "ES": "Mata Atlântica", "GO": "Cerrado",
-        "MA": "Amazônia/Cerrado", "MT": "Cerrado/Amazônia/Pantanal",
-        "MS": "Cerrado/Pantanal", "MG": "Mata Atlântica/Cerrado",
-        "PA": "Amazônia", "PB": "Caatinga/Mata Atlântica",
-        "PR": "Mata Atlântica", "PE": "Caatinga/Mata Atlântica",
-        "PI": "Caatinga/Cerrado", "RJ": "Mata Atlântica",
-        "RN": "Caatinga/Mata Atlântica", "RS": "Pampa/Mata Atlântica",
-        "RO": "Amazônia", "RR": "Amazônia", "SC": "Mata Atlântica",
-        "SP": "Mata Atlântica/Cerrado", "SE": "Mata Atlântica",
-        "TO": "Cerrado/Amazônia",
-    }
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     
+    # Decomposição
+    axes[0, 0].plot(df["Dias"], df["Decomposição (%)"], 
+                    marker='o', color='blue', linewidth=2, markersize=8)
+    axes[0, 0].set_title('Decomposição (%)', fontsize=12, fontweight='bold')
+    axes[0, 0].set_xlabel('Dias')
+    axes[0, 0].set_ylabel('Decomposição (%)')
+    axes[0, 0].grid(True, alpha=0.3)
+    
+    # Massa Restante
+    axes[0, 1].plot(df["Dias"], df["Massa Restante (t/ha)"], 
+                    marker='o', color='green', linewidth=2, markersize=8)
+    axes[0, 1].set_title('Massa Restante (t/ha)', fontsize=12, fontweight='bold')
+    axes[0, 1].set_xlabel('Dias')
+    axes[0, 1].set_ylabel('Massa Restante (t/ha)')
+    axes[0, 1].grid(True, alpha=0.3)
+    
+    # Carbono
+    axes[1, 0].plot(df["Dias"], df["Carbono (t/ha)"], 
+                    marker='o', color='orange', linewidth=2, markersize=8)
+    axes[1, 0].set_title('Carbono Residual (t/ha)', fontsize=12, fontweight='bold')
+    axes[1, 0].set_xlabel('Dias')
+    axes[1, 0].set_ylabel('Carbono (t/ha)')
+    axes[1, 0].grid(True, alpha=0.3)
+    
+    # Matéria Orgânica
+    axes[1, 1].plot(df["Dias"], df["Matéria Orgânica (t/ha)"], 
+                    marker='o', color='red', linewidth=2, markersize=8)
+    axes[1, 1].set_title('Matéria Orgânica Adicionada (t/ha)', fontsize=12, fontweight='bold')
+    axes[1, 1].set_xlabel('Dias')
+    axes[1, 1].set_ylabel('Matéria Orgânica (t/ha)')
+    axes[1, 1].grid(True, alpha=0.3)
+    
+    plt.tight_layout()
+    return fig
+
+
+def identificar_bioma_manual(lat, lon):
+    """Identifica bioma com fallback para seleção manual"""
+    
+    # Tenta API, mas não para a aplicação se falhar
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
         headers = {"User-Agent": "SoilCarbonPlanner/1.0"}
         
-        response = requests.get(url, headers=headers, timeout=10)
+        response = requests.get(url, headers=headers, timeout=5)
         
         if response.status_code == 200:
             data = response.json()
             address = data.get("address", {})
             estado = address.get("state", "")
             
-            uf = ""
-            estados_br = {
-                "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
-                "BA": "Bahia", "CE": "Ceará", "DF": "Distrito Federal", "ES": "Espírito Santo",
-                "GO": "Goiás", "MA": "Maranhão", "MT": "Mato Grosso", "MS": "Mato Grosso do Sul",
-                "MG": "Minas Gerais", "PA": "Pará", "PB": "Paraíba", "PR": "Paraná",
-                "PE": "Pernambuco", "PI": "Piauí", "RJ": "Rio de Janeiro", "RN": "Rio Grande do Norte",
-                "RS": "Rio Grande do Sul", "RO": "Rondônia", "RR": "Roraima", "SC": "Santa Catarina",
-                "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins"
-            }
-            for sigla, nome in estados_br.items():
-                if nome in estado:
-                    uf = sigla
-                    break
-            
-            if uf and uf in biomas_por_estado:
-                return biomas_por_estado[uf], "Aw"
+            # Mapeamento simplificado
+            if "Mato Grosso" in estado or "Goiás" in estado or "Distrito Federal" in estado:
+                return "Cerrado", "Aw"
+            elif "Amazonas" in estado or "Pará" in estado or "Rondônia" in estado:
+                return "Amazônia", "Af"
+            elif "Rio Grande do Sul" in estado or "Santa Catarina" in estado:
+                return "Pampa", "Cfa"
+            elif "Pernambuco" in estado or "Ceará" in estado or "Bahia" in estado:
+                return "Caatinga", "Aw"
+            elif "Mato Grosso do Sul" in estado:
+                return "Pantanal", "Aw"
+            else:
+                return "Mata Atlântica", "Af"
     except:
         pass
     
+    # Fallback baseado em coordenadas
     if lat < -15 and lat > -33 and lon < -50 and lon > -60:
         return "Pampa", "Cfa"
     elif lat < -5 and lat > -15:
@@ -360,42 +525,12 @@ def identificar_bioma(lat, lon):
         return "Cerrado", "Aw"
 
 
-def criar_grafico_decomposicao(df):
-    """Cria gráfico de decomposição usando Matplotlib"""
-    
-    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
-    
-    # Decomposição
-    axes[0, 0].plot(df["Dias"], df["Decomposição (%)"], 'b-o', linewidth=2, markersize=8)
-    axes[0, 0].set_title('Decomposição (%)', fontsize=12, fontweight='bold')
-    axes[0, 0].set_xlabel('Dias')
-    axes[0, 0].set_ylabel('Decomposição (%)')
-    axes[0, 0].grid(True, alpha=0.3)
-    
-    # Massa Restante
-    axes[0, 1].plot(df["Dias"], df["Massa Restante (t/ha)"], 'g-o', linewidth=2, markersize=8)
-    axes[0, 1].set_title('Massa Restante (t/ha)', fontsize=12, fontweight='bold')
-    axes[0, 1].set_xlabel('Dias')
-    axes[0, 1].set_ylabel('Massa Restante (t/ha)')
-    axes[0, 1].grid(True, alpha=0.3)
-    
-    # Carbono
-    axes[1, 0].plot(df["Dias"], df["Carbono (t/ha)"], 'orange-o', linewidth=2, markersize=8)
-    axes[1, 0].set_title('Carbono Residual (t/ha)', fontsize=12, fontweight='bold')
-    axes[1, 0].set_xlabel('Dias')
-    axes[1, 0].set_ylabel('Carbono (t/ha)')
-    axes[1, 0].grid(True, alpha=0.3)
-    
-    # Matéria Orgânica
-    axes[1, 1].plot(df["Dias"], df["Matéria Orgânica (t/ha)"], 'r-o', linewidth=2, markersize=8)
-    axes[1, 1].set_title('Matéria Orgânica Adicionada (t/ha)', fontsize=12, fontweight='bold')
-    axes[1, 1].set_xlabel('Dias')
-    axes[1, 1].set_ylabel('Matéria Orgânica (t/ha)')
-    axes[1, 1].grid(True, alpha=0.3)
-    
-    plt.tight_layout()
-    return fig
-
+def download_excel(df):
+    """Cria um arquivo Excel para download"""
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+        df.to_excel(writer, index=False, sheet_name='Simulação')
+    return output.getvalue()
 
 # ============================================================================
 # FUNÇÕES DE RENDERIZAÇÃO DE CADA ABA
@@ -607,6 +742,32 @@ def render_manejo():
     
     st.markdown("---")
     
+    st.subheader("🌡️ Fatores Climáticos")
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        temperatura = st.number_input(
+            "Temperatura Média (°C)",
+            min_value=10.0,
+            max_value=35.0,
+            value=st.session_state["manejo"].get("temperatura_media", 25.0),
+            step=0.5,
+            key="man_temp"
+        )
+    
+    with col4:
+        precipitacao = st.number_input(
+            "Precipitação Anual (mm)",
+            min_value=200.0,
+            max_value=4000.0,
+            value=st.session_state["manejo"].get("precipitacao", 1500.0),
+            step=50.0,
+            key="man_prec"
+        )
+    
+    st.markdown("---")
+    
     st.session_state["manejo"]["tipo"] = tipo
     st.session_state["manejo"]["anos"] = anos_pd
     st.session_state["manejo"]["culturas"] = culturas_selecionadas
@@ -614,6 +775,8 @@ def render_manejo():
     st.session_state["manejo"]["argila"] = argila
     st.session_state["manejo"]["ph"] = ph
     st.session_state["manejo"]["ctc"] = ctc
+    st.session_state["manejo"]["temperatura_media"] = temperatura
+    st.session_state["manejo"]["precipitacao"] = precipitacao
     
     st.subheader("⭐ Qualidade do Manejo")
     
@@ -636,7 +799,7 @@ def render_manejo():
     '>
         <h2>{cores.get(qualidade, '')} {qualidade}</h2>
         <p style='font-size: 14px; color: #666;'>
-            Baseado nos indicadores de matéria orgânica, pH, CTC e anos em plantio direto
+            Baseado nos indicadores de matéria orgânica, pH, CTC, argila e anos em plantio direto
         </p>
     </div>
     """, unsafe_allow_html=True)
@@ -666,18 +829,54 @@ def render_cobertura():
     with col2:
         st.metric("Longitude", f"{lon:.4f}")
     
-    if st.button("🔍 Identificar Bioma e Clima", use_container_width=True):
-        with st.spinner("Identificando bioma..."):
-            bioma, clima = identificar_bioma(lat, lon)
-            st.session_state["cobertura"]["bioma"] = bioma
-            st.session_state["cobertura"]["clima"] = clima
-            st.rerun()
+    # Identificação automática (com fallback)
+    if not st.session_state["cobertura"]["bioma"]:
+        bioma, clima = identificar_bioma_manual(lat, lon)
+        st.session_state["cobertura"]["bioma"] = bioma
+        st.session_state["cobertura"]["clima"] = clima
+    
+    # Seleção manual (MAIS ROBUSTO)
+    biomas = ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal", "Pampa"]
+    
+    bioma_selecionado = st.selectbox(
+        "Bioma da propriedade (selecione manualmente se o automático falhar)",
+        biomas,
+        index=biomas.index(st.session_state["cobertura"]["bioma"]) 
+        if st.session_state["cobertura"]["bioma"] in biomas else 0,
+        key="cov_bioma"
+    )
+    
+    st.session_state["cobertura"]["bioma"] = bioma_selecionado
+    
+    col3, col4 = st.columns(2)
+    
+    with col3:
+        periodo_seco = st.number_input(
+            "Período seco (dias)",
+            min_value=0,
+            max_value=300,
+            value=st.session_state["cobertura"].get("periodo_seco", 90),
+            key="cov_periodo"
+        )
+        st.session_state["cobertura"]["periodo_seco"] = periodo_seco
+    
+    with col4:
+        regioes = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"]
+        regiao = st.selectbox(
+            "Região",
+            regioes,
+            index=regioes.index(st.session_state["cobertura"].get("regiao", "Centro-Oeste")) 
+            if st.session_state["cobertura"].get("regiao") in regioes else 2,
+            key="cov_regiao"
+        )
+        st.session_state["cobertura"]["regiao"] = regiao
     
     if st.session_state["cobertura"]["bioma"]:
         st.info(f"""
-        **🌍 Bioma identificado:** {st.session_state['cobertura']['bioma']}
-        
+        **🌍 Bioma:** {st.session_state['cobertura']['bioma']}
         **☀️ Clima:** {st.session_state['cobertura']['clima']}
+        **🗺️ Região:** {regiao}
+        **🌵 Período seco:** {periodo_seco} dias
         """)
     
     st.markdown("---")
@@ -705,52 +904,52 @@ def render_cobertura():
     
     st.markdown("---")
     
-    st.subheader("📋 Recomendações de Coberturas")
+    st.subheader("📋 Recomendações Inteligentes de Coberturas")
     
     bioma = st.session_state["cobertura"]["bioma"]
     
     if bioma:
-        recomendacoes = recomendar_coberturas(objetivo, bioma)
+        recomendacoes = recomendar_coberturas_inteligentes(
+            objetivo, bioma, periodo_seco, regiao
+        )
         
-        st.success(f"✅ Recomendações baseadas no bioma **{bioma}** e objetivo **{objetivo}**")
+        st.success(f"✅ {len(recomendacoes)} recomendações baseadas no bioma **{bioma}**")
         
-        col1, col2, col3 = st.columns(3)
+        for i, rec in enumerate(recomendacoes):
+            st.markdown(f"""
+            <div style='
+                background-color: {"#e8f5e9" if i==0 else "#f5f5f5"};
+                padding: 15px;
+                border-radius: 10px;
+                margin: 10px 0;
+                border-left: 5px solid {"#2e7d32" if i==0 else "#999"};
+            '>
+                <h3>{'⭐ ' if i==0 else ''}🌱 {rec['especie']}</h3>
+                <p><b>Biomassa:</b> {rec['biomassa']} t/ha</p>
+                <p><b>Persistência:</b> {rec['persistencia']}</p>
+                <p><b>Carbono:</b> {rec['carbono']} t/ha</p>
+                <p><b>Relação C/N:</b> {rec['relacao_cn']}</p>
+            </div>
+            """, unsafe_allow_html=True)
         
-        for idx, rec in enumerate(recomendacoes[:3]):
-            with [col1, col2, col3][idx]:
-                st.markdown(f"""
-                <div style='
-                    background-color: #e8f5e9;
-                    padding: 15px;
-                    border-radius: 10px;
-                    text-align: center;
-                    margin: 5px 0;
-                '>
-                    <h3>🌱 {rec}</h3>
-                </div>
-                """, unsafe_allow_html=True)
+        st.session_state["cobertura"]["recomendacoes"] = [rec["especie"] for rec in recomendacoes]
         
-        st.session_state["cobertura"]["recomendacoes"] = recomendacoes
-        
-        with st.expander("📖 Mais informações sobre as coberturas recomendadas"):
-            info_coberturas = {
-                "Crotalária": "Fixação de N, controle de nematoides, decomposição rápida",
-                "Milheto": "Alta produção de biomassa, sistema radicular profundo",
-                "Braquiária brizantha": "Alta produção de carbono, persistente",
-                "Braquiária ruziziensis": "Boa cobertura, fácil manejo",
-                "Feijão-guandu": "Fixação de N, reciclagem de nutrientes",
-                "Capim mombaça": "Alta biomassa, boa cobertura",
-                "Sorgo": "Tolerância à seca, boa biomassa",
-                "Nabo-forrageiro": "Descompactação, reciclagem de nutrientes",
-                "Aveia-preta": "Boa cobertura em regiões frias",
-                "Ervilhaca": "Fixação de N, boa cobertura",
-            }
-            
-            for cobertura in recomendacoes:
-                if cobertura in info_coberturas:
-                    st.markdown(f"**{cobertura}:** {info_coberturas[cobertura]}")
+        with st.expander("📖 Detalhes das espécies recomendadas"):
+            for rec in recomendacoes:
+                especie = rec["especie"]
+                if especie in BANCO_ESPECIES:
+                    dados = BANCO_ESPECIES[especie]
+                    st.markdown(f"""
+                    **{especie}**
+                    - Produção de biomassa: {dados['biomassa_min']}-{dados['biomassa_max']} t/ha
+                    - Persistência: {dados['persistencia']}
+                    - Incremento de carbono: {dados['carbono_incremento']} t/ha
+                    - Relação C/N: {dados['relacao_cn']}
+                    - Lignina: {dados['lignina']}%
+                    - Adaptação: {', '.join(dados['adaptacao'])}
+                    """)
     else:
-        st.warning("⚠️ Clique em 'Identificar Bioma' para obter recomendações personalizadas")
+        st.warning("⚠️ Selecione um bioma para obter recomendações")
 
 
 def render_consorcio():
@@ -835,20 +1034,7 @@ def render_decomposicao():
     col1, col2 = st.columns(2)
     
     with col1:
-        coberturas = [
-            "Crotalária",
-            "Feijão-guandu",
-            "Milheto",
-            "Braquiária ruziziensis",
-            "Braquiária brizantha",
-            "Capim mombaça",
-            "Aveia-preta",
-            "Ervilhaca",
-            "Nabo-forrageiro",
-            "Sorgo",
-            "Soja",
-            "Puerária"
-        ]
+        coberturas = list(BANCO_ESPECIES.keys())
         
         cobertura = st.selectbox(
             "Tipo de Cobertura",
@@ -876,7 +1062,12 @@ def render_decomposicao():
     
     if st.button("📈 SIMULAR DECOMPOSIÇÃO", use_container_width=True, type="primary"):
         with st.spinner("Simulando decomposição..."):
-            df = simular_decomposicao(cobertura, massa_seca)
+            # Obtém fatores climáticos do manejo
+            temp = st.session_state["manejo"].get("temperatura_media", 25.0)
+            prec = st.session_state["manejo"].get("precipitacao", 1500.0)
+            argila = st.session_state["manejo"].get("argila", 30.0)
+            
+            df = simular_decomposicao(cobertura, massa_seca, temp, prec, argila)
             st.session_state["decomposicao"]["dados_simulacao"] = df
             st.success("✅ Simulação concluída!")
     
@@ -913,6 +1104,18 @@ def render_decomposicao():
                 "MO adicionada em 180 dias",
                 f"{df[df['Dias'] == 180]['Matéria Orgânica (t/ha)'].iloc[0]:.2f} t/ha"
             )
+        
+        # Botão de exportar Excel
+        st.markdown("---")
+        excel_data = download_excel(df)
+        st.download_button(
+            label="📊 Exportar para Excel",
+            data=excel_data,
+            file_name=f"decomposicao_{datetime.now().strftime('%Y%m%d')}.xlsx",
+            mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="secondary"
+        )
 
 
 def render_relatorio():
@@ -973,14 +1176,15 @@ def render_relatorio():
                 st.markdown(f"**Argila:** {man['argila']:.1f}%")
                 st.markdown(f"**pH:** {man['ph']:.1f}")
                 st.markdown(f"**CTC:** {man['ctc']:.1f} meq/100g")
+                st.markdown(f"**Temperatura:** {man.get('temperatura_media', 25):.1f}°C")
+                st.markdown(f"**Precipitação:** {man.get('precipitacao', 1500):.0f} mm")
         
         with st.expander("🌿 Coberturas Recomendadas", expanded=True):
             cov = st.session_state["cobertura"]
             
             st.markdown(f"**Objetivo:** {cov['objetivo']}")
-            
-            if cov['bioma']:
-                st.markdown(f"**Bioma:** {cov['bioma']}")
+            st.markdown(f"**Bioma:** {cov['bioma']}")
+            st.markdown(f"**Período seco:** {cov.get('periodo_seco', 90)} dias")
             
             if cov['recomendacoes']:
                 st.markdown("**Recomendações:**")
@@ -1013,19 +1217,7 @@ def render_relatorio():
         
         st.markdown("---")
         
-        col1, col2, col3 = st.columns(3)
-        
-        with col1:
-            if st.button("📄 Exportar PDF", use_container_width=True):
-                st.info("Funcionalidade em desenvolvimento")
-        
-        with col2:
-            if st.button("📊 Exportar Excel", use_container_width=True):
-                st.info("Funcionalidade em desenvolvimento")
-        
-        with col3:
-            if st.button("🖨️ Imprimir", use_container_width=True):
-                st.info("Funcionalidade em desenvolvimento")
+        st.info("✅ Relatório completo gerado com sucesso!")
     else:
         st.info("📌 Clique em 'GERAR RELATÓRIO' para visualizar o relatório completo")
 
