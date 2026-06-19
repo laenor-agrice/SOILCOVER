@@ -5,8 +5,9 @@ Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do
 import streamlit as st
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
-import altair as alt
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from datetime import datetime
 import requests
 
@@ -57,6 +58,9 @@ st.markdown("""
     }
     .stNumberInput > div > div {
         background-color: #f5f5f5;
+    }
+    .css-1d391kg {
+        background-color: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -362,45 +366,87 @@ def identificar_bioma(lat, lon):
 
 
 def criar_grafico_decomposicao(df):
-    """Cria gráfico de decomposição usando Altair"""
+    """Cria gráficos de decomposição usando Plotly"""
     
-    # Gráfico 1: Decomposição
-    chart1 = alt.Chart(df).mark_line(point=True, color='blue').encode(
-        x=alt.X('Dias:Q', title='Dias'),
-        y=alt.Y('Decomposição (%):Q', title='Decomposição (%)')
-    ).properties(
-        title='Decomposição ao Longo do Tempo',
-        height=250
+    fig = make_subplots(
+        rows=2,
+        cols=2,
+        subplot_titles=(
+            "Decomposição (%)",
+            "Massa Restante (t/ha)",
+            "Carbono Residual (t/ha)",
+            "Matéria Orgânica Adicionada (t/ha)"
+        )
     )
     
-    # Gráfico 2: Massa Restante
-    chart2 = alt.Chart(df).mark_line(point=True, color='green').encode(
-        x=alt.X('Dias:Q', title='Dias'),
-        y=alt.Y('Massa Restante (t/ha):Q', title='Massa Restante (t/ha)')
-    ).properties(
-        title='Massa Restante',
-        height=250
+    # Decomposição
+    fig.add_trace(
+        go.Scatter(
+            x=df["Dias"],
+            y=df["Decomposição (%)"],
+            mode="lines+markers",
+            name="Decomposição",
+            line=dict(color="blue", width=2),
+            marker=dict(size=8)
+        ),
+        row=1,
+        col=1
     )
     
-    # Gráfico 3: Carbono
-    chart3 = alt.Chart(df).mark_line(point=True, color='orange').encode(
-        x=alt.X('Dias:Q', title='Dias'),
-        y=alt.Y('Carbono (t/ha):Q', title='Carbono (t/ha)')
-    ).properties(
-        title='Carbono Residual',
-        height=250
+    # Massa Restante
+    fig.add_trace(
+        go.Scatter(
+            x=df["Dias"],
+            y=df["Massa Restante (t/ha)"],
+            mode="lines+markers",
+            name="Massa Restante",
+            line=dict(color="green", width=2),
+            marker=dict(size=8)
+        ),
+        row=1,
+        col=2
     )
     
-    # Gráfico 4: Matéria Orgânica
-    chart4 = alt.Chart(df).mark_line(point=True, color='red').encode(
-        x=alt.X('Dias:Q', title='Dias'),
-        y=alt.Y('Matéria Orgânica (t/ha):Q', title='Matéria Orgânica (t/ha)')
-    ).properties(
-        title='Matéria Orgânica Adicionada',
-        height=250
+    # Carbono Residual
+    fig.add_trace(
+        go.Scatter(
+            x=df["Dias"],
+            y=df["Carbono (t/ha)"],
+            mode="lines+markers",
+            name="Carbono",
+            line=dict(color="orange", width=2),
+            marker=dict(size=8)
+        ),
+        row=2,
+        col=1
     )
     
-    return chart1, chart2, chart3, chart4
+    # Matéria Orgânica
+    fig.add_trace(
+        go.Scatter(
+            x=df["Dias"],
+            y=df["Matéria Orgânica (t/ha)"],
+            mode="lines+markers",
+            name="Matéria Orgânica",
+            line=dict(color="red", width=2),
+            marker=dict(size=8)
+        ),
+        row=2,
+        col=2
+    )
+    
+    fig.update_layout(
+        height=600,
+        showlegend=False,
+        template="plotly_white"
+    )
+    
+    fig.update_xaxes(title_text="Dias", row=1, col=1)
+    fig.update_xaxes(title_text="Dias", row=1, col=2)
+    fig.update_xaxes(title_text="Dias", row=2, col=1)
+    fig.update_xaxes(title_text="Dias", row=2, col=2)
+    
+    return fig
 
 
 # ============================================================================
@@ -677,6 +723,7 @@ def render_cobertura():
             bioma, clima = identificar_bioma(lat, lon)
             st.session_state["cobertura"]["bioma"] = bioma
             st.session_state["cobertura"]["clima"] = clima
+            st.rerun()
     
     if st.session_state["cobertura"]["bioma"]:
         st.info(f"""
@@ -893,18 +940,8 @@ def render_decomposicao():
         
         st.subheader("📈 Evolução da Decomposição")
         
-        # Criar gráficos com Altair
-        chart1, chart2, chart3, chart4 = criar_grafico_decomposicao(df)
-        
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.altair_chart(chart1, use_container_width=True)
-            st.altair_chart(chart3, use_container_width=True)
-        
-        with col2:
-            st.altair_chart(chart2, use_container_width=True)
-            st.altair_chart(chart4, use_container_width=True)
+        fig = criar_grafico_decomposicao(df)
+        st.plotly_chart(fig, use_container_width=True)
         
         st.subheader("📊 Resumo da Simulação")
         
@@ -944,7 +981,7 @@ def render_relatorio():
     if st.session_state["relatorio"]["gerado"]:
         st.markdown("---")
         
-        st.markdown("""
+        st.markdown(f"""
         <div style='
             background-color: #1f4b3a;
             color: white;
@@ -954,9 +991,9 @@ def render_relatorio():
         '>
             <h1 style='color: white;'>🌱 SoilCarbon Planner</h1>
             <h3 style='color: white;'>Sistema Inteligente de Coberturas Vegetais</h3>
-            <p style='color: #c8e6c9;'>Data: {}</p>
+            <p style='color: #c8e6c9;'>Data: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
         </div>
-        """.format(datetime.now().strftime("%d/%m/%Y %H:%M")), unsafe_allow_html=True)
+        """, unsafe_allow_html=True)
         
         with st.expander("🏢 Resumo da Propriedade", expanded=True):
             cad = st.session_state["cadastro"]
