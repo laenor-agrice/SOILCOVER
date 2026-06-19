@@ -5,9 +5,7 @@ Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.express as px
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
 from datetime import datetime
 import requests
 
@@ -58,9 +56,6 @@ st.markdown("""
     }
     .stNumberInput > div > div {
         background-color: #f5f5f5;
-    }
-    .css-1d391kg {
-        background-color: #f0f2f6;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -366,86 +361,39 @@ def identificar_bioma(lat, lon):
 
 
 def criar_grafico_decomposicao(df):
-    """Cria gráficos de decomposição usando Plotly"""
+    """Cria gráfico de decomposição usando Matplotlib"""
     
-    fig = make_subplots(
-        rows=2,
-        cols=2,
-        subplot_titles=(
-            "Decomposição (%)",
-            "Massa Restante (t/ha)",
-            "Carbono Residual (t/ha)",
-            "Matéria Orgânica Adicionada (t/ha)"
-        )
-    )
+    fig, axes = plt.subplots(2, 2, figsize=(12, 10))
     
     # Decomposição
-    fig.add_trace(
-        go.Scatter(
-            x=df["Dias"],
-            y=df["Decomposição (%)"],
-            mode="lines+markers",
-            name="Decomposição",
-            line=dict(color="blue", width=2),
-            marker=dict(size=8)
-        ),
-        row=1,
-        col=1
-    )
+    axes[0, 0].plot(df["Dias"], df["Decomposição (%)"], 'b-o', linewidth=2, markersize=8)
+    axes[0, 0].set_title('Decomposição (%)', fontsize=12, fontweight='bold')
+    axes[0, 0].set_xlabel('Dias')
+    axes[0, 0].set_ylabel('Decomposição (%)')
+    axes[0, 0].grid(True, alpha=0.3)
     
     # Massa Restante
-    fig.add_trace(
-        go.Scatter(
-            x=df["Dias"],
-            y=df["Massa Restante (t/ha)"],
-            mode="lines+markers",
-            name="Massa Restante",
-            line=dict(color="green", width=2),
-            marker=dict(size=8)
-        ),
-        row=1,
-        col=2
-    )
+    axes[0, 1].plot(df["Dias"], df["Massa Restante (t/ha)"], 'g-o', linewidth=2, markersize=8)
+    axes[0, 1].set_title('Massa Restante (t/ha)', fontsize=12, fontweight='bold')
+    axes[0, 1].set_xlabel('Dias')
+    axes[0, 1].set_ylabel('Massa Restante (t/ha)')
+    axes[0, 1].grid(True, alpha=0.3)
     
-    # Carbono Residual
-    fig.add_trace(
-        go.Scatter(
-            x=df["Dias"],
-            y=df["Carbono (t/ha)"],
-            mode="lines+markers",
-            name="Carbono",
-            line=dict(color="orange", width=2),
-            marker=dict(size=8)
-        ),
-        row=2,
-        col=1
-    )
+    # Carbono
+    axes[1, 0].plot(df["Dias"], df["Carbono (t/ha)"], 'orange-o', linewidth=2, markersize=8)
+    axes[1, 0].set_title('Carbono Residual (t/ha)', fontsize=12, fontweight='bold')
+    axes[1, 0].set_xlabel('Dias')
+    axes[1, 0].set_ylabel('Carbono (t/ha)')
+    axes[1, 0].grid(True, alpha=0.3)
     
     # Matéria Orgânica
-    fig.add_trace(
-        go.Scatter(
-            x=df["Dias"],
-            y=df["Matéria Orgânica (t/ha)"],
-            mode="lines+markers",
-            name="Matéria Orgânica",
-            line=dict(color="red", width=2),
-            marker=dict(size=8)
-        ),
-        row=2,
-        col=2
-    )
+    axes[1, 1].plot(df["Dias"], df["Matéria Orgânica (t/ha)"], 'r-o', linewidth=2, markersize=8)
+    axes[1, 1].set_title('Matéria Orgânica Adicionada (t/ha)', fontsize=12, fontweight='bold')
+    axes[1, 1].set_xlabel('Dias')
+    axes[1, 1].set_ylabel('Matéria Orgânica (t/ha)')
+    axes[1, 1].grid(True, alpha=0.3)
     
-    fig.update_layout(
-        height=600,
-        showlegend=False,
-        template="plotly_white"
-    )
-    
-    fig.update_xaxes(title_text="Dias", row=1, col=1)
-    fig.update_xaxes(title_text="Dias", row=1, col=2)
-    fig.update_xaxes(title_text="Dias", row=2, col=1)
-    fig.update_xaxes(title_text="Dias", row=2, col=2)
-    
+    plt.tight_layout()
     return fig
 
 
@@ -941,7 +889,8 @@ def render_decomposicao():
         st.subheader("📈 Evolução da Decomposição")
         
         fig = criar_grafico_decomposicao(df)
-        st.plotly_chart(fig, use_container_width=True)
+        st.pyplot(fig)
+        plt.close(fig)
         
         st.subheader("📊 Resumo da Simulação")
         
