@@ -9,7 +9,13 @@ import altair as alt
 from datetime import datetime
 import requests
 import io
-import json
+
+# ============================================================================
+# CONFIGURAÇÕES
+# ============================================================================
+
+# Chave da API Geoapify (fixa no código)
+GEOAPIFY_API_KEY = "26d9c20ff9d542ed80fbd9a63a6f50fe"  # ← Substitua pela sua chave
 
 # ============================================================================
 # CONFIGURAÇÃO DA PÁGINA
@@ -99,14 +105,6 @@ st.markdown("""
         margin-top: 4px;
         font-weight: 500;
     }
-    .map-container {
-        border-radius: 12px;
-        overflow: hidden;
-        border: 2px solid #e0e4e8;
-        background-color: #f5f7fa;
-        padding: 20px;
-        text-align: center;
-    }
     .ref-container {
         background-color: #f5f7fa;
         padding: 20px;
@@ -118,19 +116,29 @@ st.markdown("""
         color: #1b5e20;
         margin-top: 0;
     }
-    .stTextInput > div > div > input {
-        border-radius: 8px;
-        font-size: 1rem;
-    }
     .coordenada-input {
         font-family: monospace;
         font-size: 1.1rem;
     }
-    .api-key-container {
-        background-color: #fff8e1;
+    .info-box {
+        background-color: #e3f2fd;
         padding: 15px;
-        border-radius: 10px;
-        border: 1px solid #ffcc02;
+        border-radius: 8px;
+        border-left: 4px solid #1565c0;
+        margin: 10px 0;
+    }
+    .warning-box {
+        background-color: #fff3e0;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #e65100;
+        margin: 10px 0;
+    }
+    .success-box {
+        background-color: #e8f5e9;
+        padding: 15px;
+        border-radius: 8px;
+        border-left: 4px solid #2e7d32;
         margin: 10px 0;
     }
 </style>
@@ -151,7 +159,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Palhada", "Carbono", "Descompactação"],
         "decomp_k": 0.035,
         "referencia": "Embrapa Milho e Sorgo",
-        "clima_pref": ["Tropical", "Semiárido"]
+        "clima_pref": ["Tropical", "Semiárido"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Crotalária": {
         "biomassa_min": 6, "biomassa_max": 10,
@@ -163,7 +174,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Nitrogênio", "Palhada", "Nematoides"],
         "decomp_k": 0.045,
         "referencia": "Embrapa Agrobiologia",
-        "clima_pref": ["Tropical", "Subtropical"]
+        "clima_pref": ["Tropical", "Subtropical"],
+        "tipo": "Leguminosa",
+        "sistema_radicular": "Pivotante",
+        "fixacao_n": True
     },
     "Braquiária brizantha": {
         "biomassa_min": 10, "biomassa_max": 18,
@@ -175,7 +189,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Carbono", "Palhada", "Pastagem"],
         "decomp_k": 0.025,
         "referencia": "Embrapa Gado de Corte",
-        "clima_pref": ["Tropical"]
+        "clima_pref": ["Tropical"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Braquiária ruziziensis": {
         "biomassa_min": 8, "biomassa_max": 14,
@@ -187,7 +204,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Palhada", "Carbono"],
         "decomp_k": 0.030,
         "referencia": "Embrapa Cerrados",
-        "clima_pref": ["Tropical"]
+        "clima_pref": ["Tropical"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Feijão-guandu": {
         "biomassa_min": 5, "biomassa_max": 9,
@@ -199,7 +219,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Nitrogênio", "Palhada", "Reciclagem"],
         "decomp_k": 0.040,
         "referencia": "Embrapa Arroz e Feijão",
-        "clima_pref": ["Tropical", "Subtropical"]
+        "clima_pref": ["Tropical", "Subtropical"],
+        "tipo": "Leguminosa",
+        "sistema_radicular": "Pivotante",
+        "fixacao_n": True
     },
     "Capim mombaça": {
         "biomassa_min": 12, "biomassa_max": 20,
@@ -211,7 +234,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Carbono", "Palhada"],
         "decomp_k": 0.020,
         "referencia": "Embrapa Pecuária Sudeste",
-        "clima_pref": ["Tropical"]
+        "clima_pref": ["Tropical"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Aveia-preta": {
         "biomassa_min": 4, "biomassa_max": 7,
@@ -223,7 +249,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Palhada", "Reciclagem"],
         "decomp_k": 0.042,
         "referencia": "Embrapa Trigo",
-        "clima_pref": ["Subtropical", "Temperado"]
+        "clima_pref": ["Subtropical", "Temperado"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Ervilhaca": {
         "biomassa_min": 3, "biomassa_max": 6,
@@ -235,7 +264,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Nitrogênio", "Palhada"],
         "decomp_k": 0.045,
         "referencia": "Embrapa Clima Temperado",
-        "clima_pref": ["Subtropical", "Temperado"]
+        "clima_pref": ["Subtropical", "Temperado"],
+        "tipo": "Leguminosa",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": True
     },
     "Nabo-forrageiro": {
         "biomassa_min": 4, "biomassa_max": 8,
@@ -247,7 +279,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Descompactação", "Reciclagem"],
         "decomp_k": 0.048,
         "referencia": "Embrapa Soja",
-        "clima_pref": ["Subtropical", "Temperado"]
+        "clima_pref": ["Subtropical", "Temperado"],
+        "tipo": "Crucífera",
+        "sistema_radicular": "Pivotante",
+        "fixacao_n": False
     },
     "Sorgo": {
         "biomassa_min": 8, "biomassa_max": 15,
@@ -259,7 +294,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Palhada", "Carbono"],
         "decomp_k": 0.032,
         "referencia": "Embrapa Milho e Sorgo",
-        "clima_pref": ["Tropical", "Semiárido"]
+        "clima_pref": ["Tropical", "Semiárido"],
+        "tipo": "Gramínea",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": False
     },
     "Soja": {
         "biomassa_min": 3, "biomassa_max": 5,
@@ -271,7 +309,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Nitrogênio", "Reciclagem"],
         "decomp_k": 0.050,
         "referencia": "Embrapa Soja",
-        "clima_pref": ["Tropical", "Subtropical"]
+        "clima_pref": ["Tropical", "Subtropical"],
+        "tipo": "Leguminosa",
+        "sistema_radicular": "Pivotante",
+        "fixacao_n": True
     },
     "Puerária": {
         "biomassa_min": 6, "biomassa_max": 10,
@@ -283,7 +324,10 @@ BANCO_ESPECIES = {
         "objetivos": ["Palhada", "Carbono", "Nitrogênio"],
         "decomp_k": 0.028,
         "referencia": "Embrapa Amazônia Oriental",
-        "clima_pref": ["Tropical"]
+        "clima_pref": ["Tropical"],
+        "tipo": "Leguminosa",
+        "sistema_radicular": "Fibroso",
+        "fixacao_n": True
     }
 }
 
@@ -315,6 +359,119 @@ REFERENCIAS_TECNICAS = {
         "Modelo de decomposição: Equação exponencial de Stanford & Smith (1972).",
         "Classificação de biomas: IBGE (2019)."
     ]
+}
+
+# ============================================================================
+# BANCO DE DADOS DE CONSÓRCIOS
+# ============================================================================
+
+CONSORCIOS_DB = {
+    "Soja": {
+        "opcoes": [
+            {
+                "nome": "Soja + Braquiária",
+                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "↑ CTC"],
+                "impacto": "0 a -5%",
+                "justificativa": "A braquiária produz alta biomassa e melhora a estrutura do solo.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safra + Cobertura",
+                "recomendacao": "Semeie a braquiária a lanço na dessecação da soja."
+            },
+            {
+                "nome": "Soja + Crotalária (safrinha)",
+                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
+                "impacto": "0 a -3%",
+                "justificativa": "Crotalária fixa nitrogênio e controla nematoides do gênero Meloidogyne.",
+                "compatibilidade": "Muito Alta",
+                "tipo_consorcio": "Safrinha",
+                "recomendacao": "Semeie a crotalária após a colheita da soja."
+            },
+            {
+                "nome": "Soja + Milheto (safrinha)",
+                "beneficios": ["↑ Palhada", "↑ Matéria orgânica"],
+                "impacto": "0 a -4%",
+                "justificativa": "Milheto produz grande quantidade de palhada para o sistema plantio direto.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safrinha",
+                "recomendacao": "Semeie o milheto após a colheita da soja."
+            }
+        ]
+    },
+    "Milho": {
+        "opcoes": [
+            {
+                "nome": "Milho + Braquiária",
+                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "Pastagem"],
+                "impacto": "0 a -8%",
+                "justificativa": "Sistema integrado lavoura-pecuária, a braquiária forma pastagem após a colheita.",
+                "compatibilidade": "Muito Alta",
+                "tipo_consorcio": "Integração Lavoura-Pecuária",
+                "recomendacao": "Semeie a braquiária junto com o milho ou a lanço."
+            },
+            {
+                "nome": "Milho + Crotalária",
+                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
+                "impacto": "0 a -10%",
+                "justificativa": "Crotalária fornece N para o milho em sucessão e controla nematoides.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safra + Cobertura",
+                "recomendacao": "Intercale a crotalária nas entrelinhas do milho."
+            },
+            {
+                "nome": "Milho + Feijão-guandu",
+                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Reciclagem nutrientes"],
+                "impacto": "0 a -7%",
+                "justificativa": "Feijão-guandu fixa N e recicla nutrientes das camadas profundas.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safra + Cobertura",
+                "recomendacao": "Semeie o guandu a lanço na pré-colheita do milho."
+            }
+        ]
+    },
+    "Algodão": {
+        "opcoes": [
+            {
+                "nome": "Algodão + Crotalária (safrinha)",
+                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
+                "impacto": "0 a -5%",
+                "justificativa": "Crotalária melhora a fertilidade e controla nematoides do algodoeiro.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safrinha",
+                "recomendacao": "Semeie a crotalária após a colheita do algodão."
+            },
+            {
+                "nome": "Algodão + Milheto (safrinha)",
+                "beneficios": ["↑ Palhada", "↑ Matéria orgânica"],
+                "impacto": "0 a -6%",
+                "justificativa": "Milheto produz palhada para o sistema plantio direto.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safrinha",
+                "recomendacao": "Semeie o milheto após a colheita do algodão."
+            }
+        ]
+    },
+    "Feijão": {
+        "opcoes": [
+            {
+                "nome": "Feijão + Braquiária",
+                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"],
+                "impacto": "0 a -5%",
+                "justificativa": "Braquiária melhora a estrutura e a infiltração do solo.",
+                "compatibilidade": "Alta",
+                "tipo_consorcio": "Safra + Cobertura",
+                "recomendacao": "Semeie a braquiária a lanço após o feijão."
+            },
+            {
+                "nome": "Feijão + Crotalária",
+                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica"],
+                "impacto": "0 a -4%",
+                "justificativa": "Crotalária fixa N e melhora a fertilidade para a próxima safra.",
+                "compatibilidade": "Muito Alta",
+                "tipo_consorcio": "Safra + Cobertura",
+                "recomendacao": "Intercale a crotalária nas entrelinhas do feijão."
+            }
+        ]
+    }
 }
 
 # ============================================================================
@@ -364,7 +521,11 @@ def init_session_state():
             "tempo_permanencia": 90,
             "producao_biomassa": 8.0,
             "fixacao_n": "Não",
-            "sistema_produtivo": "Grãos"
+            "sistema_produtivo": "Grãos",
+            "problema_principal": "",
+            "caracteristica_desejada": "",
+            "dados_salvos": False,
+            "recomendacoes_geradas": False
         }
     
     if "consorcio" not in st.session_state:
@@ -385,9 +546,6 @@ def init_session_state():
             "gerado": False,
             "conteudo": "",
         }
-    
-    if "geoapify_key" not in st.session_state:
-        st.session_state["geoapify_key"] = ""
 
 
 def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
@@ -447,13 +605,15 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
         return "Muito baixa"
 
 
-def recomendar_coberturas_dinamicas(objetivo, bioma, periodo_seco, regiao, 
-                                    clima, sistema_produtivo, fertilidade,
-                                    disponibilidade_hidrica, tempo_permanencia,
-                                    producao_biomassa, fixacao_n):
-    """Recomenda coberturas de forma dinâmica baseada em múltiplos fatores"""
+def recomendar_coberturas_dinamicas(problema, caracteristica, bioma, clima, 
+                                   sistema_produtivo, fertilidade, periodo_seco,
+                                   temperatura, precipitacao, objetivo):
+    """
+    Recomenda coberturas baseada em múltiplos fatores agronômicos
+    """
     recomendacoes = []
     
+    # Mapeamento de objetivos para tipo de espécie
     objetivo_map = {
         "Produzir palhada": "Palhada",
         "Produzir matéria orgânica": "Carbono",
@@ -466,47 +626,61 @@ def recomendar_coberturas_dinamicas(objetivo, bioma, periodo_seco, regiao,
     
     for especie, dados in BANCO_ESPECIES.items():
         score = 0
-        fit_bioma = bioma in dados["adaptacao"]
+        justificativas = []
         
-        # Verifica bioma
-        if fit_bioma:
+        # 1. Verifica bioma
+        if bioma in dados["adaptacao"]:
             score += 20
+            justificativas.append(f"Adaptada ao bioma {bioma}")
         
-        # Verifica objetivo
+        # 2. Verifica objetivo
         if objetivo_clean in dados["objetivos"]:
             score += 25
+            justificativas.append(f"Ideal para {objetivo}")
         
-        # Verifica clima
+        # 3. Verifica clima
         if clima in dados.get("clima_pref", []):
             score += 15
+            justificativas.append(f"Adaptada ao clima {clima}")
         
-        # Verifica persistência
+        # 4. Verifica persistência
         persistencia_dias = int(dados["persistencia"].split("-")[0])
         if persistencia_dias >= periodo_seco * 0.7:
             score += 10
+            justificativas.append("Boa persistência no período seco")
         
-        # Verifica produção de biomassa
-        if dados["biomassa_max"] >= producao_biomassa * 0.7:
+        # 5. Verifica sistema produtivo
+        if sistema_produtivo == "Pecuária" and "Pastagem" in dados["objetivos"]:
             score += 10
+            justificativas.append("Recomendada para sistemas pecuários")
         
-        # Verifica fixação de N
-        if fixacao_n == "Sim" and objetivo_clean == "Nitrogênio":
-            if dados["relacao_cn"] < 30:
-                score += 10
+        if sistema_produtivo == "Integração Lavoura-Pecuária" and "Pastagem" in dados["objetivos"]:
+            score += 8
+            justificativas.append("Compatível com integração lavoura-pecuária")
         
-        # Verifica fertilidade
-        if fertilidade == "Baixa":
-            if dados["relacao_cn"] > 50:
-                score += 5
-        
-        # Verifica disponibilidade hídrica
-        if disponibilidade_hidrica == "Baixa":
-            if dados["biomassa_max"] > 8:
-                score += 5
-        
-        # Verifica tempo de permanência
-        if persistencia_dias >= tempo_permanencia * 0.7:
+        # 6. Verifica fertilidade
+        if fertilidade == "Baixa" and dados["relacao_cn"] > 50:
+            score += 8
+            justificativas.append("Tolerante à baixa fertilidade")
+        elif fertilidade == "Alta" and dados["relacao_cn"] < 40:
             score += 5
+            justificativas.append("Responde bem à alta fertilidade")
+        
+        # 7. Verifica fixação de N
+        if objetivo_clean == "Nitrogênio" and dados["fixacao_n"]:
+            score += 15
+            justificativas.append("Realiza fixação biológica de nitrogênio")
+        
+        # 8. Verifica descompactação
+        if objetivo_clean == "Descompactação" and dados["sistema_radicular"] == "Pivotante":
+            score += 10
+            justificativas.append("Sistema radicular pivotante descompacta o solo")
+        
+        # 9. Verifica temperatura
+        if 25 <= temperatura <= 30 and clima == "Tropical":
+            if dados["clima_pref"] == ["Tropical"]:
+                score += 5
+                justificativas.append("Adaptada a temperaturas tropicais")
         
         # Só adiciona se tiver score mínimo
         if score >= 40:
@@ -517,40 +691,16 @@ def recomendar_coberturas_dinamicas(objetivo, bioma, periodo_seco, regiao,
                 "carbono": dados["carbono_incremento"],
                 "relacao_cn": dados["relacao_cn"],
                 "referencia": dados.get("referencia", "Embrapa"),
-                "score": score
+                "tipo": dados.get("tipo", ""),
+                "sistema_radicular": dados.get("sistema_radicular", ""),
+                "fixacao_n": dados.get("fixacao_n", False),
+                "score": score,
+                "justificativas": justificativas[:4]  # Limita a 4 justificativas
             })
     
     # Ordena por score
     recomendacoes.sort(key=lambda x: x["score"], reverse=True)
-    return recomendacoes[:4]
-
-
-def recomendar_consorcios(cultura_principal):
-    """Recomenda consórcios baseado na cultura principal"""
-    consorcios = {
-        "Soja": [
-            {"nome": "Soja + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "↑ CTC"], "impacto": "0 a -5%"},
-            {"nome": "Soja + Crotalária (safrinha)", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -3%"},
-            {"nome": "Soja + Milheto (safrinha)", "beneficios": ["↑ Palhada", "↑ Matéria orgânica"], "impacto": "0 a -4%"}
-        ],
-        "Milho": [
-            {"nome": "Milho + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "Pastagem"], "impacto": "0 a -8%"},
-            {"nome": "Milho + Crotalária", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -10%"},
-            {"nome": "Milho + Feijão-guandu", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Reciclagem nutrientes"], "impacto": "0 a -7%"}
-        ],
-        "Algodão": [
-            {"nome": "Algodão + Crotalária (safrinha)", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -5%"},
-            {"nome": "Algodão + Milheto (safrinha)", "beneficios": ["↑ Palhada", "↑ Matéria orgânica"], "impacto": "0 a -6%"}
-        ],
-        "Feijão": [
-            {"nome": "Feijão + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"], "impacto": "0 a -5%"},
-            {"nome": "Feijão + Crotalária", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica"], "impacto": "0 a -4%"}
-        ]
-    }
-    
-    return consorcios.get(cultura_principal, [
-        {"nome": "Recomendação padrão", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"], "impacto": "0 a -5%"}
-    ])
+    return recomendacoes
 
 
 def simular_decomposicao(cobertura, massa_seca, temperatura=25, precipitacao=1500, argila=30):
@@ -701,11 +851,11 @@ def download_excel(df):
     return output.getvalue()
 
 
-def exibir_mapa_geoapify(lat, lon, api_key):
-    """Exibe um mapa usando Geoapify"""
+def exibir_mapa_geoapify(lat, lon):
+    """Exibe um mapa usando Geoapify com chave fixa"""
     
-    if not api_key:
-        st.warning("⚠️ Configure a chave da API Geoapify nas configurações abaixo para visualizar o mapa.")
+    if not GEOAPIFY_API_KEY or GEOAPIFY_API_KEY == "SUA_CHAVE_AQUI":
+        st.warning("⚠️ Chave da API Geoapify não configurada. Substitua 'SUA_CHAVE_AQUI' no código.")
         return
     
     if not (-33.75 <= lat <= 5.27) or not (-73.98 <= lon <= -34.79):
@@ -713,13 +863,10 @@ def exibir_mapa_geoapify(lat, lon, api_key):
         return
     
     try:
-        # URL para o mapa estático do Geoapify
-        map_url = f"https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=400&center=lonlat:{lon},{lat}&zoom=10&marker=lonlat:{lon},{lat};color:%23ff0000;size:large&apiKey={api_key}"
+        map_url = f"https://maps.geoapify.com/v1/staticmap?style=osm-bright&width=800&height=400&center=lonlat:{lon},{lat}&zoom=10&marker=lonlat:{lon},{lat};color:%23ff0000;size:large&apiKey={GEOAPIFY_API_KEY}"
         
-        # Exibir o mapa
         st.image(map_url, use_container_width=True)
         
-        # Exibir coordenadas formatadas
         st.markdown(f"""
         <div style='background-color: #f5f7fa; padding: 15px; border-radius: 10px; margin-top: 10px; text-align: center;'>
             <b>📍 Localização:</b> Latitude: {lat:.4f}° | Longitude: {lon:.4f}°
@@ -819,28 +966,6 @@ def render_cadastro():
     st.markdown("---")
     init_session_state()
     
-    # Configuração da API Geoapify
-    with st.expander("⚙️ Configuração do Mapa", expanded=True):
-        st.markdown("""
-        <div class="api-key-container">
-            <p>Para visualizar o mapa, insira sua chave da API Geoapify.</p>
-            <p style='font-size: 0.9rem; color: #666;'>Obtenha uma chave gratuita em: <a href='https://www.geoapify.com/' target='_blank'>geoapify.com</a></p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        api_key = st.text_input(
-            "Chave da API Geoapify",
-            value=st.session_state["geoapify_key"],
-            type="password",
-            key="geoapify_key_input",
-            placeholder="Insira sua chave API aqui..."
-        )
-        if api_key:
-            st.session_state["geoapify_key"] = api_key
-            st.success("✅ Chave API configurada!")
-    
-    st.markdown("---")
-    
     col1, col2 = st.columns(2)
     
     with col1:
@@ -861,7 +986,6 @@ def render_cadastro():
     
     col3, col4 = st.columns(2)
     with col3:
-        # Campo de latitude sem spinner
         lat_str = st.text_input(
             "Latitude",
             value=str(st.session_state["cadastro"]["latitude"]),
@@ -878,7 +1002,6 @@ def render_cadastro():
             latitude = st.session_state["cadastro"]["latitude"]
     
     with col4:
-        # Campo de longitude sem spinner
         lon_str = st.text_input(
             "Longitude",
             value=str(st.session_state["cadastro"]["longitude"]),
@@ -894,14 +1017,9 @@ def render_cadastro():
         except ValueError:
             longitude = st.session_state["cadastro"]["longitude"]
     
-    # Exibir mapa automaticamente
     st.markdown("---")
     st.subheader("🗺️ Visualização da Localização")
-    
-    if st.session_state["geoapify_key"]:
-        exibir_mapa_geoapify(latitude, longitude, st.session_state["geoapify_key"])
-    else:
-        st.warning("⚠️ Configure a chave da API Geoapify na seção acima para visualizar o mapa.")
+    exibir_mapa_geoapify(latitude, longitude)
     
     st.markdown("---")
     
@@ -917,7 +1035,6 @@ def render_cadastro():
         st.session_state["cadastro"]["longitude"] = longitude
         st.success("✅ Cadastro salvo com sucesso!")
     
-    # Exibir dados salvos em formato amigável
     st.markdown("---")
     st.subheader("📊 Dados da Propriedade")
     exibir_dados_propriedade()
@@ -1018,109 +1135,175 @@ def render_manejo():
 
 
 def render_cobertura():
-    """Renderiza a página de coberturas vegetais com atualização dinâmica"""
+    """Renderiza a página de coberturas vegetais com fluxo corrigido"""
     st.title("🌿 Planejamento de Coberturas Vegetais")
     st.markdown("---")
     init_session_state()
     
-    st.subheader("📍 Localização e Bioma")
-    lat = st.session_state["cadastro"]["latitude"]
-    lon = st.session_state["cadastro"]["longitude"]
+    st.markdown("""
+    <div class="info-box">
+        <b>📌 Instruções:</b> Preencha todas as informações sobre sua propriedade e clique em 
+        <b>"Salvar Variáveis"</b> para gerar recomendações personalizadas de cobertura vegetal.
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # ===== ETAPA 1: PREENCHIMENTO DOS DADOS =====
+    st.subheader("📋 Etapa 1: Informações da Propriedade")
     
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Latitude", f"{lat:.4f}°")
+        st.markdown("**🌾 Sistema Produtivo**")
+        sistemas = ["Grãos", "Pecuária", "Integração Lavoura-Pecuária", "Hortaliças", "Fruticultura"]
+        sistema_produtivo = st.selectbox("Sistema Produtivo", sistemas, key="cov_sistema")
+    
     with col2:
-        st.metric("Longitude", f"{lon:.4f}°")
-    
-    if not st.session_state["cobertura"]["bioma"]:
-        bioma, clima, tipo_clima = identificar_bioma_manual(lat, lon)
-        st.session_state["cobertura"]["bioma"] = bioma
-        st.session_state["cobertura"]["clima"] = tipo_clima
-    
-    biomas = ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal", "Pampa"]
-    bioma_selecionado = st.selectbox("Bioma da propriedade", biomas, index=biomas.index(st.session_state["cobertura"]["bioma"]) if st.session_state["cobertura"]["bioma"] in biomas else 0, key="cov_bioma")
-    st.session_state["cobertura"]["bioma"] = bioma_selecionado
+        st.markdown("**🌍 Bioma**")
+        biomas = ["Cerrado", "Mata Atlântica", "Amazônia", "Caatinga", "Pantanal", "Pampa"]
+        bioma = st.selectbox("Bioma da propriedade", biomas, key="cov_bioma")
     
     col3, col4 = st.columns(2)
     with col3:
-        periodo_seco = st.number_input("Período seco (dias)", min_value=0, max_value=300, value=st.session_state["cobertura"].get("periodo_seco", 90), key="cov_periodo")
-        st.session_state["cobertura"]["periodo_seco"] = periodo_seco
+        st.markdown("**🌡️ Clima**")
+        climas = ["Tropical", "Subtropical", "Semiárido", "Temperado"]
+        clima = st.selectbox("Clima predominante", climas, key="cov_clima")
+    
     with col4:
-        regioes = ["Norte", "Nordeste", "Centro-Oeste", "Sudeste", "Sul"]
-        regiao = st.selectbox("Região", regioes, index=regioes.index(st.session_state["cobertura"].get("regiao", "Centro-Oeste")) if st.session_state["cobertura"].get("regiao") in regioes else 2, key="cov_regiao")
-        st.session_state["cobertura"]["regiao"] = regiao
-    
-    # Identificar clima automaticamente
-    if st.session_state["cobertura"]["bioma"]:
-        clima_map = {
-            "Cerrado": "Tropical",
-            "Mata Atlântica": "Tropical",
-            "Amazônia": "Tropical",
-            "Caatinga": "Semiárido",
-            "Pantanal": "Tropical",
-            "Pampa": "Subtropical"
-        }
-        st.session_state["cobertura"]["clima"] = clima_map.get(st.session_state["cobertura"]["bioma"], "Tropical")
-        
-        st.info(f"**🌍 Bioma:** {st.session_state['cobertura']['bioma']} | **☀️ Clima:** {st.session_state['cobertura']['clima']} | **🗺️ Região:** {regiao} | **🌵 Período seco:** {periodo_seco} dias")
+        st.markdown("**🌵 Período Seco**")
+        periodo_seco = st.number_input("Período seco (dias)", min_value=0, max_value=300, value=st.session_state["cobertura"].get("periodo_seco", 90), key="cov_periodo")
     
     st.markdown("---")
-    st.subheader("🎯 Objetivo da Cobertura Vegetal")
+    st.subheader("🎯 Etapa 2: Objetivos e Limitações")
     
-    objetivos = ["Produzir palhada", "Produzir matéria orgânica", "Descompactação", "Reciclagem de nutrientes", "Fixação biológica de nitrogênio", "Controle de nematoides"]
-    objetivo = st.selectbox("Selecione o principal objetivo", objetivos, index=objetivos.index(st.session_state["cobertura"]["objetivo"]) if st.session_state["cobertura"]["objetivo"] in objetivos else 0, key="cov_objetivo")
-    st.session_state["cobertura"]["objetivo"] = objetivo
-    
-    st.markdown("---")
-    st.subheader("📋 Parâmetros Adicionais")
-    
-    col5, col6, col7 = st.columns(3)
+    col5, col6 = st.columns(2)
     with col5:
-        sistemas = ["Grãos", "Pecuária", "Integração Lavoura-Pecuária", "Hortaliças", "Fruticultura"]
-        sistema_produtivo = st.selectbox("Sistema Produtivo", sistemas, key="cov_sistema", index=sistemas.index(st.session_state["cobertura"].get("sistema_produtivo", "Grãos")) if st.session_state["cobertura"].get("sistema_produtivo") in sistemas else 0)
-        st.session_state["cobertura"]["sistema_produtivo"] = sistema_produtivo
+        st.markdown("**🎯 Objetivo Principal**")
+        objetivos = ["Produzir palhada", "Produzir matéria orgânica", "Descompactação", "Reciclagem de nutrientes", "Fixação biológica de nitrogênio", "Controle de nematoides"]
+        objetivo = st.selectbox("Selecione o objetivo principal", objetivos, key="cov_objetivo")
     
     with col6:
-        fertilidades = ["Baixa", "Média", "Alta"]
-        fertilidade = st.selectbox("Fertilidade do Solo", fertilidades, key="cov_fertilidade")
+        st.markdown("**🔧 Problema Principal**")
+        problemas = [
+            "Baixa matéria orgânica",
+            "Compactação do solo",
+            "Baixa fertilidade",
+            "Erosão",
+            "Infestação de nematoides",
+            "Baixa infiltração",
+            "Crosta superficial"
+        ]
+        problema = st.selectbox("Selecione o problema principal", problemas, key="cov_problema")
     
+    col7, col8 = st.columns(2)
     with col7:
-        hidricas = ["Baixa", "Média", "Alta"]
-        disponibilidade_hidrica = st.selectbox("Disponibilidade Hídrica", hidricas, key="cov_hidrica")
+        st.markdown("**✨ Característica Desejada**")
+        caracteristicas = [
+            "Alta produção de biomassa",
+            "Rápida decomposição",
+            "Lenta decomposição",
+            "Sistema radicular profundo",
+            "Fixação biológica de N",
+            "Controle de plantas daninhas"
+        ]
+        caracteristica = st.selectbox("Selecione a característica desejada", caracteristicas, key="cov_caracteristica")
     
-    col8, col9, col10 = st.columns(3)
     with col8:
+        st.markdown("**⏱️ Tempo de Permanência**")
         tempo_permanencia = st.number_input("Tempo de permanência desejado (dias)", min_value=30, max_value=365, value=st.session_state["cobertura"].get("tempo_permanencia", 90), key="cov_tempo")
-        st.session_state["cobertura"]["tempo_permanencia"] = tempo_permanencia
     
+    col9, col10 = st.columns(2)
     with col9:
-        producao_biomassa = st.number_input("Produção de biomassa desejada (t/ha)", min_value=1.0, max_value=25.0, value=st.session_state["cobertura"].get("producao_biomassa", 8.0), step=0.5, key="cov_biomassa")
-        st.session_state["cobertura"]["producao_biomassa"] = producao_biomassa
+        st.markdown("**🧪 Fertilidade do Solo**")
+        fertilidades = ["Baixa", "Média", "Alta"]
+        fertilidade = st.selectbox("Fertilidade do solo", fertilidades, key="cov_fertilidade")
     
     with col10:
-        fixacao_n = st.selectbox("Necessita fixação de N?", ["Não", "Sim"], key="cov_fixacao")
-        st.session_state["cobertura"]["fixacao_n"] = fixacao_n
+        st.markdown("**💧 Disponibilidade Hídrica**")
+        hidricas = ["Baixa", "Média", "Alta"]
+        disponibilidade_hidrica = st.selectbox("Disponibilidade hídrica", hidricas, key="cov_hidrica")
     
     st.markdown("---")
-    st.subheader("📋 Recomendações Dinâmicas de Coberturas")
     
-    bioma = st.session_state["cobertura"]["bioma"]
-    clima = st.session_state["cobertura"].get("clima", "Tropical")
+    # ===== ETAPA 2: SALVAR DADOS =====
+    if st.button("💾 SALVAR VARIÁVEIS E GERAR RECOMENDAÇÕES", use_container_width=True, type="primary"):
+        st.session_state["cobertura"]["sistema_produtivo"] = sistema_produtivo
+        st.session_state["cobertura"]["bioma"] = bioma
+        st.session_state["cobertura"]["clima"] = clima
+        st.session_state["cobertura"]["periodo_seco"] = periodo_seco
+        st.session_state["cobertura"]["objetivo"] = objetivo
+        st.session_state["cobertura"]["problema_principal"] = problema
+        st.session_state["cobertura"]["caracteristica_desejada"] = caracteristica
+        st.session_state["cobertura"]["tempo_permanencia"] = tempo_permanencia
+        st.session_state["cobertura"]["fertilidade"] = fertilidade
+        st.session_state["cobertura"]["disponibilidade_hidrica"] = disponibilidade_hidrica
+        st.session_state["cobertura"]["dados_salvos"] = True
+        st.session_state["cobertura"]["recomendacoes_geradas"] = False
+        
+        st.success("✅ Variáveis salvas com sucesso! Clique em 'Gerar Recomendações' para ver as sugestões.")
     
-    if bioma:
-        recomendacoes = recomendar_coberturas_dinamicas(
-            objetivo, bioma, periodo_seco, regiao,
-            clima, sistema_produtivo, fertilidade,
-            disponibilidade_hidrica, tempo_permanencia,
-            producao_biomassa, fixacao_n
-        )
+    st.markdown("---")
+    
+    # ===== ETAPA 3: GERAR RECOMENDAÇÕES =====
+    if st.session_state["cobertura"]["dados_salvos"]:
+        if st.button("🔍 GERAR RECOMENDAÇÕES", use_container_width=True, type="primary"):
+            with st.spinner("Processando recomendações..."):
+                # Obtém dados da propriedade
+                bioma = st.session_state["cobertura"]["bioma"]
+                clima = st.session_state["cobertura"]["clima"]
+                objetivo = st.session_state["cobertura"]["objetivo"]
+                problema = st.session_state["cobertura"]["problema_principal"]
+                caracteristica = st.session_state["cobertura"]["caracteristica_desejada"]
+                periodo_seco = st.session_state["cobertura"]["periodo_seco"]
+                sistema_produtivo = st.session_state["cobertura"]["sistema_produtivo"]
+                fertilidade = st.session_state["cobertura"]["fertilidade"]
+                disponibilidade_hidrica = st.session_state["cobertura"]["disponibilidade_hidrica"]
+                temperatura = st.session_state["manejo"].get("temperatura_media", 25.0)
+                precipitacao = st.session_state["manejo"].get("precipitacao", 1500.0)
+                
+                # Gera recomendações
+                recomendacoes = recomendar_coberturas_dinamicas(
+                    problema, caracteristica, bioma, clima,
+                    sistema_produtivo, fertilidade, periodo_seco,
+                    temperatura, precipitacao, objetivo
+                )
+                
+                st.session_state["cobertura"]["recomendacoes"] = recomendacoes
+                st.session_state["cobertura"]["recomendacoes_geradas"] = True
+                st.success("✅ Recomendações geradas com sucesso!")
+    
+    st.markdown("---")
+    
+    # ===== ETAPA 4: EXIBIR RECOMENDAÇÕES =====
+    if st.session_state["cobertura"]["recomendacoes_geradas"]:
+        st.subheader("📋 Recomendações Personalizadas")
+        
+        recomendacoes = st.session_state["cobertura"]["recomendacoes"]
         
         if recomendacoes:
-            st.success(f"✅ {len(recomendacoes)} recomendações baseadas em todos os parâmetros informados")
+            st.markdown(f"""
+            <div class="success-box">
+                <b>✅ Encontradas {len(recomendacoes)} espécies recomendadas</b>
+            </div>
+            """, unsafe_allow_html=True)
             
             for i, rec in enumerate(recomendacoes):
                 classe = "card-recomendacao destaque" if i == 0 else "card-recomendacao"
+                
+                # Monta justificativas
+                justificativas_texto = ""
+                if rec.get("justificativas"):
+                    justificativas_texto = "<br>".join([f"✓ {j}" for j in rec["justificativas"]])
+                
+                # Monta informações adicionais
+                info_extra = ""
+                if rec.get("tipo"):
+                    info_extra += f"<p><b>Tipo:</b> {rec['tipo']}</p>"
+                if rec.get("sistema_radicular"):
+                    info_extra += f"<p><b>Sistema radicular:</b> {rec['sistema_radicular']}</p>"
+                if rec.get("fixacao_n") is not None:
+                    info_extra += f"<p><b>Fixação de N:</b> {'✅ Sim' if rec['fixacao_n'] else '❌ Não'}</p>"
+                
                 st.markdown(f"""
                 <div class="{classe}">
                     <h3>{'⭐ ' if i == 0 else ''}🌱 {rec['especie']}</h3>
@@ -1129,19 +1312,22 @@ def render_cobertura():
                     <p><b>Incremento de carbono:</b> {rec['carbono']} t/ha</p>
                     <p><b>Relação C/N:</b> {rec['relacao_cn']}</p>
                     <p><b>Score de adequação:</b> {rec['score']}%</p>
+                    {info_extra}
+                    <p><b>Justificativas:</b><br>{justificativas_texto}</p>
                     <p><b>Referência:</b> {rec.get('referencia', 'Embrapa')}</p>
                 </div>
                 """, unsafe_allow_html=True)
-            
-            st.session_state["cobertura"]["recomendacoes"] = [rec["especie"] for rec in recomendacoes]
         else:
             st.warning("⚠️ Nenhuma espécie encontrada com os parâmetros atuais. Tente ajustar os filtros.")
-    else:
-        st.warning("⚠️ Selecione um bioma para obter recomendações")
+        
+        # Salva nomes das recomendações para o relatório
+        st.session_state["cobertura"]["recomendacoes_nomes"] = [rec["especie"] for rec in recomendacoes]
+    elif st.session_state["cobertura"]["dados_salvos"]:
+        st.info("📌 Clique em 'Gerar Recomendações' para visualizar as sugestões.")
 
 
 def render_consorcio():
-    """Renderiza a página de consórcios inteligentes"""
+    """Renderiza a página de consórcios inteligentes com lógica revisada"""
     st.title("🌾 Consórcios Inteligentes")
     st.markdown("---")
     init_session_state()
@@ -1152,25 +1338,70 @@ def render_consorcio():
     st.session_state["consorcio"]["cultura_principal"] = cultura_principal
     
     st.markdown("---")
-    st.subheader("📋 Consórcios Recomendados")
+    st.subheader("🌡️ Condições de Cultivo")
     
-    consorcios = recomendar_consorcios(cultura_principal)
-    st.session_state["consorcio"]["consorcios"] = consorcios
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        clima_consorcio = st.selectbox("Clima", ["Tropical", "Subtropical", "Semiárido", "Temperado"], key="con_clima")
+    with col2:
+        objetivo_consorcio = st.selectbox("Objetivo Principal", ["Produção de Palhada", "Fixação de N", "Descompactação", "Ciclagem de Nutrientes"], key="con_objetivo")
+    with col3:
+        sistema_consorcio = st.selectbox("Sistema de Produção", ["Grãos", "Pecuária", "Integração Lavoura-Pecuária"], key="con_sistema")
     
-    for i, consorcio in enumerate(consorcios, 1):
-        with st.expander(f"Consórcio {i}: {consorcio['nome']}", expanded=i==1):
-            col1, col2 = st.columns([2, 1])
-            with col1:
-                st.markdown("**Benefícios:**")
-                for beneficio in consorcio["beneficios"]:
-                    st.markdown(f"✅ {beneficio}")
-            with col2:
-                st.metric(
-                    label="Impacto produtivo estimado",
-                    value=consorcio["impacto"],
-                    delta="Perda estimada" if "-" in consorcio["impacto"] else "Ganho estimado"
-                )
-                st.caption("Valor estimado: depende do clima, fertilidade e manejo")
+    st.markdown("---")
+    
+    if st.button("🔍 ANALISAR CONSÓRCIOS", use_container_width=True, type="primary"):
+        st.session_state["consorcio"]["analisado"] = True
+    
+    st.markdown("---")
+    
+    if st.session_state.get("consorcio", {}).get("analisado", False):
+        st.subheader("📋 Consórcios Recomendados")
+        
+        if cultura_principal in CONSORCIOS_DB:
+            opcoes = CONSORCIOS_DB[cultura_principal]["opcoes"]
+            
+            # Filtra por objetivo
+            opcoes_filtradas = []
+            for opcao in opcoes:
+                # Verifica compatibilidade com o objetivo
+                if objetivo_consorcio == "Produção de Palhada" and "Palhada" in str(opcao["beneficios"]):
+                    opcoes_filtradas.append(opcao)
+                elif objetivo_consorcio == "Fixação de N" and "Fixação" in str(opcao["beneficios"]):
+                    opcoes_filtradas.append(opcao)
+                elif objetivo_consorcio == "Descompactação" and "Infiltração" in str(opcao["beneficios"]):
+                    opcoes_filtradas.append(opcao)
+                elif objetivo_consorcio == "Ciclagem de Nutrientes" and "Reciclagem" in str(opcao["beneficios"]):
+                    opcoes_filtradas.append(opcao)
+                else:
+                    # Se não encaixar no filtro, mantém como opção secundária
+                    opcoes_filtradas.append(opcao)
+            
+            for i, consorcio in enumerate(opcoes_filtradas[:3], 1):
+                with st.expander(f"Consórcio {i}: {consorcio['nome']}", expanded=i==1):
+                    col1, col2 = st.columns([2, 1])
+                    with col1:
+                        st.markdown("**Benefícios:**")
+                        for beneficio in consorcio["beneficios"]:
+                            st.markdown(f"✅ {beneficio}")
+                        
+                        st.markdown(f"""
+                        **📖 Justificativa Técnica:**
+                        {consorcio['justificativa']}
+                        """)
+                        
+                        st.markdown(f"""
+                        **📌 Recomendação de Manejo:**
+                        {consorcio['recomendacao']}
+                        """)
+                    with col2:
+                        st.metric("Impacto produtivo estimado", consorcio["impacto"])
+                        st.metric("Compatibilidade", consorcio["compatibilidade"])
+                        st.caption(f"Tipo: {consorcio['tipo_consorcio']}")
+        else:
+            st.warning("⚠️ Cultura não encontrada no banco de dados")
+    else:
+        st.info("📌 Clique em 'Analisar Consórcios' para visualizar as recomendações.")
 
 
 def render_decomposicao():
@@ -1242,7 +1473,6 @@ def render_decomposicao():
         
         st.markdown("---")
         
-        # Exportação com fallback
         try:
             excel_data = download_excel(df)
             st.download_button(
@@ -1255,9 +1485,7 @@ def render_decomposicao():
             )
         except Exception as e:
             st.warning(f"⚠️ Não foi possível exportar para Excel: {str(e)}")
-            st.info("💡 Exportando para CSV como alternativa...")
             
-            # Fallback para CSV
             csv_data = df.to_csv(index=False)
             st.download_button(
                 label="📊 Exportar para CSV",
@@ -1311,12 +1539,20 @@ def render_relatorio():
         
         with st.expander("🌿 Coberturas Recomendadas", expanded=True):
             cov = st.session_state["cobertura"]
-            st.markdown(f"**Objetivo:** {cov['objetivo']}")
-            st.markdown(f"**Bioma:** {cov['bioma']}")
-            if cov['recomendacoes']:
+            st.markdown(f"**Objetivo:** {cov.get('objetivo', 'Não definido')}")
+            st.markdown(f"**Bioma:** {cov.get('bioma', 'Não definido')}")
+            st.markdown(f"**Problema:** {cov.get('problema_principal', 'Não definido')}")
+            
+            if cov.get('recomendacoes_nomes'):
+                st.markdown("**Recomendações:**")
+                for rec in cov['recomendacoes_nomes']:
+                    st.markdown(f"✅ {rec}")
+            elif cov.get('recomendacoes'):
                 st.markdown("**Recomendações:**")
                 for rec in cov['recomendacoes']:
-                    st.markdown(f"✅ {rec}")
+                    st.markdown(f"✅ {rec.get('especie', rec)}")
+            else:
+                st.warning("Nenhuma recomendação gerada")
         
         with st.expander("📊 Simulação de Decomposição", expanded=True):
             dec = st.session_state["decomposicao"]
@@ -1327,7 +1563,6 @@ def render_relatorio():
             else:
                 st.warning("Nenhuma simulação realizada")
         
-        # Referências técnicas - APENAS NO RELATÓRIO
         st.markdown("---")
         with st.expander("📚 Referências Técnicas", expanded=True):
             st.markdown(get_referencias_relatorio())
@@ -1367,7 +1602,6 @@ if st.session_state["cadastro"]["nome"]:
     st.sidebar.success(f"👤 {st.session_state['cadastro']['nome']}")
     st.sidebar.caption(f"🏢 {st.session_state['cadastro']['fazenda'] or 'Propriedade não cadastrada'}")
 
-# Roteamento das abas
 if aba == "📝 Cadastro":
     render_cadastro()
 elif aba == "🔬 Manejo":
@@ -1382,4 +1616,4 @@ elif aba == "📄 Relatório":
     render_relatorio()
 
 st.markdown("---")
-st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia")
+st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia | Base técnico-científica: Embrapa e Boletim 100 - SBCS")
