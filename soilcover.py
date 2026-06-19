@@ -1,15 +1,12 @@
 """
-Módulos do SoilCarbon Planner
-"""
-"""
 SoilCarbon Planner
 Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do Solo
 """
 import streamlit as st
 import pandas as pd
 import numpy as np
-import plotly.graph_objects as go
-from plotly.subplots import make_subplots
+import matplotlib.pyplot as plt
+import altair as alt
 from datetime import datetime
 import requests
 
@@ -71,7 +68,6 @@ st.markdown("""
 def init_session_state():
     """Inicializa todas as variáveis do session_state"""
     
-    # Dados do usuário
     if "cadastro" not in st.session_state:
         st.session_state["cadastro"] = {
             "nome": "",
@@ -85,7 +81,6 @@ def init_session_state():
             "longitude": -50.0,
         }
     
-    # Dados de manejo
     if "manejo" not in st.session_state:
         st.session_state["manejo"] = {
             "tipo": "Plantio Direto Consolidado",
@@ -97,7 +92,6 @@ def init_session_state():
             "ctc": 8.0,
         }
     
-    # Dados de cobertura
     if "cobertura" not in st.session_state:
         st.session_state["cobertura"] = {
             "objetivo": "Produzir palhada",
@@ -106,14 +100,12 @@ def init_session_state():
             "recomendacoes": [],
         }
     
-    # Dados de consórcio
     if "consorcio" not in st.session_state:
         st.session_state["consorcio"] = {
             "cultura_principal": "Soja",
             "consorcios": [],
         }
     
-    # Dados de decomposição
     if "decomposicao" not in st.session_state:
         st.session_state["decomposicao"] = {
             "cobertura": "Braquiária brizantha",
@@ -121,31 +113,20 @@ def init_session_state():
             "dados_simulacao": None,
         }
     
-    # Relatório
     if "relatorio" not in st.session_state:
         st.session_state["relatorio"] = {
             "gerado": False,
             "conteudo": "",
         }
     
-    # Navegação
     if "aba_atual" not in st.session_state:
         st.session_state["aba_atual"] = "Cadastro"
-
-
-def formatar_numero(valor, casas=2):
-    """Formata um número para exibição"""
-    try:
-        return f"{float(valor):.{casas}f}"
-    except:
-        return str(valor)
 
 
 def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     """Calcula a qualidade do manejo baseado nos indicadores"""
     pontuacao = 0
     
-    # Matéria orgânica (0-10%)
     if mo >= 4.0:
         pontuacao += 25
     elif mo >= 3.0:
@@ -157,7 +138,6 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 5
     
-    # pH (5.5-6.5 ideal)
     if 5.5 <= ph <= 6.5:
         pontuacao += 25
     elif 5.0 <= ph <= 7.0:
@@ -165,7 +145,6 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 10
     
-    # CTC (meq/100g)
     if ctc >= 10:
         pontuacao += 25
     elif ctc >= 6:
@@ -173,7 +152,6 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 10
     
-    # Anos em plantio direto
     if anos_pd >= 10:
         pontuacao += 25
     elif anos_pd >= 5:
@@ -183,7 +161,6 @@ def calcular_qualidade_manejo(mo, argila, ph, ctc, anos_pd):
     else:
         pontuacao += 5
     
-    # Classificação
     if pontuacao >= 90:
         return "Excelente"
     elif pontuacao >= 75:
@@ -249,7 +226,6 @@ def recomendar_coberturas(objetivo, bioma):
         },
     }
     
-    # Fallback se bioma não estiver no dicionário
     if bioma not in recomendacoes.get(objetivo, {}):
         return recomendacoes.get(objetivo, {}).get("Cerrado", ["Crotalária", "Milheto", "Braquiária"])
     
@@ -260,78 +236,33 @@ def recomendar_consorcios(cultura_principal):
     """Recomenda consórcios baseado na cultura principal"""
     consorcios = {
         "Soja": [
-            {
-                "nome": "Soja + Braquiária",
-                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "↑ CTC"],
-                "impacto": "0 a -5%"
-            },
-            {
-                "nome": "Soja + Crotalária (safrinha)",
-                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
-                "impacto": "0 a -3%"
-            },
-            {
-                "nome": "Soja + Milheto (safrinha)",
-                "beneficios": ["↑ Palhada", "↑ Matéria orgânica"],
-                "impacto": "0 a -4%"
-            }
+            {"nome": "Soja + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "↑ CTC"], "impacto": "0 a -5%"},
+            {"nome": "Soja + Crotalária (safrinha)", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -3%"},
+            {"nome": "Soja + Milheto (safrinha)", "beneficios": ["↑ Palhada", "↑ Matéria orgânica"], "impacto": "0 a -4%"}
         ],
         "Milho": [
-            {
-                "nome": "Milho + Braquiária",
-                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "Pastagem"],
-                "impacto": "0 a -8%"
-            },
-            {
-                "nome": "Milho + Crotalária",
-                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
-                "impacto": "0 a -10%"
-            },
-            {
-                "nome": "Milho + Feijão-guandu",
-                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Reciclagem nutrientes"],
-                "impacto": "0 a -7%"
-            }
+            {"nome": "Milho + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração", "Pastagem"], "impacto": "0 a -8%"},
+            {"nome": "Milho + Crotalária", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -10%"},
+            {"nome": "Milho + Feijão-guandu", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Reciclagem nutrientes"], "impacto": "0 a -7%"}
         ],
         "Algodão": [
-            {
-                "nome": "Algodão + Crotalária (safrinha)",
-                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"],
-                "impacto": "0 a -5%"
-            },
-            {
-                "nome": "Algodão + Milheto (safrinha)",
-                "beneficios": ["↑ Palhada", "↑ Matéria orgânica"],
-                "impacto": "0 a -6%"
-            }
+            {"nome": "Algodão + Crotalária (safrinha)", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica", "Controle de nematóides"], "impacto": "0 a -5%"},
+            {"nome": "Algodão + Milheto (safrinha)", "beneficios": ["↑ Palhada", "↑ Matéria orgânica"], "impacto": "0 a -6%"}
         ],
         "Feijão": [
-            {
-                "nome": "Feijão + Braquiária",
-                "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"],
-                "impacto": "0 a -5%"
-            },
-            {
-                "nome": "Feijão + Crotalária",
-                "beneficios": ["↑ Fixação N", "↑ Matéria orgânica"],
-                "impacto": "0 a -4%"
-            }
+            {"nome": "Feijão + Braquiária", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"], "impacto": "0 a -5%"},
+            {"nome": "Feijão + Crotalária", "beneficios": ["↑ Fixação N", "↑ Matéria orgânica"], "impacto": "0 a -4%"}
         ]
     }
     
     return consorcios.get(cultura_principal, [
-        {
-            "nome": "Recomendação padrão",
-            "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"],
-            "impacto": "0 a -5%"
-        }
+        {"nome": "Recomendação padrão", "beneficios": ["↑ Matéria orgânica", "↑ Infiltração"], "impacto": "0 a -5%"}
     ])
 
 
 def simular_decomposicao(cobertura, massa_seca):
     """Simula a decomposição da cobertura vegetal ao longo do tempo"""
     
-    # Coeficientes de decomposição por tipo de cobertura
     coef_decomp = {
         "Crotalária": 0.045,
         "Feijão-guandu": 0.040,
@@ -347,21 +278,16 @@ def simular_decomposicao(cobertura, massa_seca):
         "Puerária": 0.028,
     }
     
-    k = coef_decomp.get(cobertura, 0.030)  # valor padrão
-    
-    # Dias para simular
+    k = coef_decomp.get(cobertura, 0.030)
     dias = [0, 30, 60, 90, 120, 150, 180]
     
-    # Modelo exponencial: M(t) = M0 * exp(-k * t)
     dados = []
-    carbono_residual = []
-    mo_adicionada = []
     
     for t in dias:
         massa_restante = massa_seca * np.exp(-k * t)
         decomposicao = ((massa_seca - massa_restante) / massa_seca) * 100
-        carbono = massa_restante * 0.45  # 45% de carbono na matéria seca
-        mo = massa_restante * 1.724  # Fator de conversão para matéria orgânica
+        carbono = massa_restante * 0.45
+        mo = massa_restante * 1.724
         
         dados.append({
             "Dias": t,
@@ -370,17 +296,13 @@ def simular_decomposicao(cobertura, massa_seca):
             "Carbono (t/ha)": round(carbono, 2),
             "Matéria Orgânica (t/ha)": round(mo, 2)
         })
-        
-        carbono_residual.append(carbono)
-        mo_adicionada.append(mo)
     
-    return pd.DataFrame(dados), carbono_residual, mo_adicionada
+    return pd.DataFrame(dados)
 
 
 def identificar_bioma(lat, lon):
     """Identifica o bioma baseado nas coordenadas"""
     
-    # Dicionário de biomas brasileiros (aproximado)
     biomas_por_estado = {
         "AC": "Amazônia", "AL": "Mata Atlântica", "AP": "Amazônia",
         "AM": "Amazônia", "BA": "Mata Atlântica/Caatinga", "CE": "Caatinga",
@@ -396,7 +318,6 @@ def identificar_bioma(lat, lon):
         "TO": "Cerrado/Amazônia",
     }
     
-    # Tenta geocodificar reversamente para obter estado
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
         headers = {"User-Agent": "SoilCarbonPlanner/1.0"}
@@ -408,7 +329,6 @@ def identificar_bioma(lat, lon):
             address = data.get("address", {})
             estado = address.get("state", "")
             
-            # Extrai UF do estado
             uf = ""
             estados_br = {
                 "AC": "Acre", "AL": "Alagoas", "AP": "Amapá", "AM": "Amazonas",
@@ -420,17 +340,15 @@ def identificar_bioma(lat, lon):
                 "SP": "São Paulo", "SE": "Sergipe", "TO": "Tocantins"
             }
             for sigla, nome in estados_br.items():
-                if nome in estado or nome in estado:
+                if nome in estado:
                     uf = sigla
                     break
             
             if uf and uf in biomas_por_estado:
-                bioma = biomas_por_estado[uf]
-                return bioma, "Aw"
+                return biomas_por_estado[uf], "Aw"
     except:
         pass
     
-    # Fallback baseado na coordenada
     if lat < -15 and lat > -33 and lon < -50 and lon > -60:
         return "Pampa", "Cfa"
     elif lat < -5 and lat > -15:
@@ -439,10 +357,50 @@ def identificar_bioma(lat, lon):
         return "Amazônia", "Af"
     elif lat > -5 and lon > -45:
         return "Mata Atlântica", "Af"
-    elif lat > -5 and lon < -45:
-        return "Amazônia", "Af"
     else:
         return "Cerrado", "Aw"
+
+
+def criar_grafico_decomposicao(df):
+    """Cria gráfico de decomposição usando Altair"""
+    
+    # Gráfico 1: Decomposição
+    chart1 = alt.Chart(df).mark_line(point=True, color='blue').encode(
+        x=alt.X('Dias:Q', title='Dias'),
+        y=alt.Y('Decomposição (%):Q', title='Decomposição (%)')
+    ).properties(
+        title='Decomposição ao Longo do Tempo',
+        height=250
+    )
+    
+    # Gráfico 2: Massa Restante
+    chart2 = alt.Chart(df).mark_line(point=True, color='green').encode(
+        x=alt.X('Dias:Q', title='Dias'),
+        y=alt.Y('Massa Restante (t/ha):Q', title='Massa Restante (t/ha)')
+    ).properties(
+        title='Massa Restante',
+        height=250
+    )
+    
+    # Gráfico 3: Carbono
+    chart3 = alt.Chart(df).mark_line(point=True, color='orange').encode(
+        x=alt.X('Dias:Q', title='Dias'),
+        y=alt.Y('Carbono (t/ha):Q', title='Carbono (t/ha)')
+    ).properties(
+        title='Carbono Residual',
+        height=250
+    )
+    
+    # Gráfico 4: Matéria Orgânica
+    chart4 = alt.Chart(df).mark_line(point=True, color='red').encode(
+        x=alt.X('Dias:Q', title='Dias'),
+        y=alt.Y('Matéria Orgânica (t/ha):Q', title='Matéria Orgânica (t/ha)')
+    ).properties(
+        title='Matéria Orgânica Adicionada',
+        height=250
+    )
+    
+    return chart1, chart2, chart3, chart4
 
 
 # ============================================================================
@@ -923,7 +881,7 @@ def render_decomposicao():
     
     if st.button("📈 SIMULAR DECOMPOSIÇÃO", use_container_width=True, type="primary"):
         with st.spinner("Simulando decomposição..."):
-            df, carbono, mo = simular_decomposicao(cobertura, massa_seca)
+            df = simular_decomposicao(cobertura, massa_seca)
             st.session_state["decomposicao"]["dados_simulacao"] = df
             st.success("✅ Simulação concluída!")
     
@@ -935,77 +893,18 @@ def render_decomposicao():
         
         st.subheader("📈 Evolução da Decomposição")
         
-        fig = make_subplots(
-            rows=2,
-            cols=2,
-            subplot_titles=(
-                "Decomposição (%)",
-                "Massa Restante (t/ha)",
-                "Carbono Residual (t/ha)",
-                "Matéria Orgânica Adicionada (t/ha)"
-            )
-        )
+        # Criar gráficos com Altair
+        chart1, chart2, chart3, chart4 = criar_grafico_decomposicao(df)
         
-        fig.add_trace(
-            go.Scatter(
-                x=df["Dias"],
-                y=df["Decomposição (%)"],
-                mode="lines+markers",
-                name="Decomposição",
-                line=dict(color="blue", width=2)
-            ),
-            row=1,
-            col=1
-        )
+        col1, col2 = st.columns(2)
         
-        fig.add_trace(
-            go.Scatter(
-                x=df["Dias"],
-                y=df["Massa Restante (t/ha)"],
-                mode="lines+markers",
-                name="Massa Restante",
-                line=dict(color="green", width=2)
-            ),
-            row=1,
-            col=2
-        )
+        with col1:
+            st.altair_chart(chart1, use_container_width=True)
+            st.altair_chart(chart3, use_container_width=True)
         
-        fig.add_trace(
-            go.Scatter(
-                x=df["Dias"],
-                y=df["Carbono (t/ha)"],
-                mode="lines+markers",
-                name="Carbono",
-                line=dict(color="orange", width=2)
-            ),
-            row=2,
-            col=1
-        )
-        
-        fig.add_trace(
-            go.Scatter(
-                x=df["Dias"],
-                y=df["Matéria Orgânica (t/ha)"],
-                mode="lines+markers",
-                name="Matéria Orgânica",
-                line=dict(color="red", width=2)
-            ),
-            row=2,
-            col=2
-        )
-        
-        fig.update_layout(
-            height=600,
-            showlegend=False,
-            template="plotly_white"
-        )
-        
-        fig.update_xaxes(title_text="Dias", row=1, col=1)
-        fig.update_xaxes(title_text="Dias", row=1, col=2)
-        fig.update_xaxes(title_text="Dias", row=2, col=1)
-        fig.update_xaxes(title_text="Dias", row=2, col=2)
-        
-        st.plotly_chart(fig, use_container_width=True)
+        with col2:
+            st.altair_chart(chart2, use_container_width=True)
+            st.altair_chart(chart4, use_container_width=True)
         
         st.subheader("📊 Resumo da Simulação")
         
