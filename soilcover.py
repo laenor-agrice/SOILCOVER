@@ -21,7 +21,7 @@ GEOAPIFY_API_KEY = "26d9c20ff9d542ed80fbd9a63a6f50fe"  # ← Substitua pela sua 
 # ============================================================================
 st.set_page_config(
     page_title="AgroSync",
-    page_icon="🌱",
+    page_icon="",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -1577,7 +1577,7 @@ def render_relatorio():
 
 st.markdown("""
 <div class="main-header">
-    <h1>🌱 SoilCarbon Planner</h1>
+    <h1>AgroSync</h1>
     <p>Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do Solo</p>
 </div>
 """, unsafe_allow_html=True)
@@ -1593,7 +1593,7 @@ aba = st.sidebar.radio(
 
 st.sidebar.markdown("---")
 st.sidebar.info(
-    "**🌱 SoilCarbon Planner**\n\n"
+    "**AgroSync**\n\n"
     "Sistema desenvolvido para auxiliar no planejamento de coberturas vegetais e manejo da matéria orgânica do solo."
 )
 
@@ -1615,4 +1615,4 @@ elif aba == "📄 Relatório":
     render_relatorio()
 
 st.markdown("---")
-st.caption("🌱 SoilCarbon Planner v1.0 | Desenvolvido para Disciplina de Agronomia | Base técnico-científica: Embrapa e Boletim 100 - SBCS")
+st.caption(" AgroSync v1.0 | Desenvolvido no PPG Cinências Agrárias | Base técnico-científica: Embrapa e Boletim 100 - SBCS")
