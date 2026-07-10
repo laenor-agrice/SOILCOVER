@@ -769,7 +769,7 @@ def identificar_bioma_manual(lat, lon):
     """Identifica bioma com fallback para seleção manual"""
     try:
         url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
-        headers = {"User-Agent": "SoilCarbonPlanner/1.0"}
+        headers = {"User-Agent": "AgroSync/1.0"}
         response = requests.get(url, headers=headers, timeout=5)
         
         if response.status_code == 200:
