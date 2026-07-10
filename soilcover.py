@@ -20,7 +20,7 @@ GEOAPIFY_API_KEY = "26d9c20ff9d542ed80fbd9a63a6f50fe"  # ← Substitua pela sua 
 # CONFIGURAÇÃO DA PÁGINA
 # ============================================================================
 st.set_page_config(
-    page_title="SoilCarbon Planner",
+    page_title="AgroSync",
     page_icon="🌱",
     layout="wide",
     initial_sidebar_state="expanded"
