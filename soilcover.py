@@ -1,6 +1,5 @@
 """
-SoilCarbon Planner
-Sistema Inteligente de Coberturas Vegetais e Incremento de Matéria Orgânica do Solo
+AgroSync – Sistema Inteligente de Manejo Integrado
 """
 import streamlit as st
 import pandas as pd
