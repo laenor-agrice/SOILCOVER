@@ -1510,7 +1510,7 @@ def render_relatorio():
         st.markdown("---")
         st.markdown(f"""
         <div style='background-color: #1b5e20; color: white; padding: 25px; border-radius: 12px; margin-bottom: 30px;'>
-            <h1 style='color: white; margin: 0;'>🌱 SoilCarbon Planner</h1>
+            <h1 style='color: white; margin: 0;'>AgroSync</h1>
             <h3 style='color: #c8e6c9; margin: 5px 0;'>Sistema Inteligente de Coberturas Vegetais</h3>
             <p style='color: #a5d6a7; margin: 5px 0;'>Data: {datetime.now().strftime("%d/%m/%Y %H:%M")}</p>
         </div>
